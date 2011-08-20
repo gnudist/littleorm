@@ -33,7 +33,7 @@ FXOINoqUOvIG1kAG:
 							    isa => $attr -> { 'isa' },
 							    lazy => 1,
 							    metaclass => 'MooseX::MetaDescription::Meta::Attribute',
-							    description => &descr_or_undef( $attr ),
+							    description => ( &descr_or_undef( $attr ) or {} ),
 							    default => sub {
 								    
 								    my $t = $self -> _rec() -> { $rec_field_name };
