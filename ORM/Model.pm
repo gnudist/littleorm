@@ -79,15 +79,8 @@ sub load_module
 sub get
 {
 	my $self = shift;
-
-	my %args = @_;
-
-	my @where_args = $self -> form_where( %args );
-
-	my $sql = sprintf( "SELECT * FROM %s WHERE %s LIMIT 1", $self -> _db_table(), join( ' AND ', @where_args ) );
-
+	my $sql = $self -> form_get_sql( @_, '_limit' => 1 );
 	my $rec = &ORM::Db::getrow( $sql );
-
 	return $self -> new( _rec => $rec );
 }
 
@@ -95,14 +88,8 @@ sub get_many
 {
 	my $self = shift;
 
-	my %args = @_;
-
 	my @outcome = ();
-
-	my @where_args = $self -> form_where( %args );
-
-	my $sql = sprintf( "SELECT * FROM %s WHERE %s", $self -> _db_table(), join( ' AND ', @where_args ) );
-
+	my $sql = $self -> form_get_sql( @_ );
 	my $sth = &ORM::Db::prep( $sql );
 	$sth -> execute();
 
@@ -116,6 +103,54 @@ sub get_many
 
 }
 
+sub form_get_sql
+{
+	my $self = shift;
+
+	my %args = @_;
+
+	my @where_args = $self -> form_where( %args );
+
+	my $sql = sprintf( "SELECT * FROM %s WHERE %s", $self -> _db_table(), join( ' AND ', @where_args ) );
+
+	if( my $t = $args{ '_sortby' } )
+	{
+		if( ref( $t ) eq 'HASH' )
+		{
+			# then its like
+			# { field1 => 'DESC',
+			#   field2 => 'ASC' ... }
+
+			my @pairs = ();
+
+			while( my ( $k, $sort_order ) = each %{ $t } )
+			{
+				my $dbf = &get_db_field_name( $self -> meta() -> get_attribute( $k ) );
+				push @pairs, sprintf( '%s %s', $dbf, $sort_order );
+			}
+			$sql .= ' ORDER BY ' . join( ',', @pairs );
+		} else
+		{
+			# then its attr name and unspecified order
+			my $dbf = &get_db_field_name( $self -> meta() -> get_attribute( $t ) );
+			$sql .= ' ORDER BY ' . $dbf;
+		}
+	}
+
+	if( my $t = int( $args{ '_limit' } ) )
+	{
+		$sql .= sprintf( ' LIMIT %d ', $t );
+	}
+
+	if( my $t = int( $args{ '_offset' } ) )
+	{
+		$sql .= sprintf( ' OFFSET %d ', $t );
+	}
+
+	return $sql;
+
+}
+
 sub form_where
 {
 	my $self = shift;
@@ -123,8 +158,13 @@ sub form_where
 	my %args = @_;
 
 	my @where_args = ( '1=1' );
+fhFwaEknUtY5xwNr:
 	foreach my $attr ( keys %args )
 	{
+		if( $attr =~ /^_/ ) # skip system agrs, they start with underscore
+		{
+			next fhFwaEknUtY5xwNr;
+		}
 
 		my $col = &get_db_field_name( $self -> meta() -> get_attribute( $attr ) );
 
