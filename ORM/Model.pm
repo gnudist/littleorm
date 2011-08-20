@@ -28,6 +28,7 @@ FXOINoqUOvIG1kAG:
 
 		my $rec_field_name = &get_db_field_name( $attr );
 		my $coerce_from = &descr_attr( $attr, 'coerce_from' );
+		my $foreign_key = &descr_attr( $attr, 'foreign_key' );
 
 		$self -> meta() -> add_attribute( $aname, ( is => 'rw',
 							    isa => $attr -> { 'isa' },
@@ -41,6 +42,14 @@ FXOINoqUOvIG1kAG:
 								    if( defined $coerce_from )
 								    {
 									    $t = $coerce_from -> ( $t );
+
+								    } elsif( $foreign_key )
+								    {
+									    &load_module( $foreign_key );
+
+									    my $his_pk = $foreign_key -> find_primary_key();
+
+									    $t = $foreign_key -> get( $his_pk -> name() => $t );
 
 								    }
 
@@ -56,6 +65,17 @@ FXOINoqUOvIG1kAG:
 	
 }
 
+sub load_module
+{
+	my $mn = shift;
+
+	$mn =~ s/::/\//g;
+	$mn .= '.pm';
+
+	require( $mn );
+
+}
+
 sub get
 {
 	my $self = shift;
@@ -66,6 +86,7 @@ sub get
 
 	foreach my $attr ( keys %args )
 	{
+
 		my $col = &get_db_field_name( $self -> meta() -> get_attribute( $attr ) );
 
 		my $val = $args{ $attr };
@@ -113,6 +134,13 @@ ETxc0WxZs0boLUm1:
 		if( defined $coerce_to )
 		{
 			$value = $coerce_to -> ( $value );
+		}
+
+		if( ref( $value ) and &descr_attr( $attr, 'foreign_key' ) )
+		{
+			my $his_pk = $value -> find_primary_key();
+			my $his_pk_name = $his_pk -> name();
+			$value = $value -> $his_pk_name();
 		}
 
 		push @upadte_pairs, sprintf( '%s=%s', &get_db_field_name( $attr ), &ORM::Db::dbq( $value ) );
