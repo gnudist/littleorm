@@ -1,0 +1,1 @@
+LittleORM is a simple ORM written in Perl with Moose. It has been tested with PostgreSQL only.
