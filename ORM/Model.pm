@@ -82,23 +82,73 @@ sub get
 
 	my %args = @_;
 
-	my @where_args = ( '1=1' );
+	my @where_args = $self -> form_where( %args );
 
+	my $sql = sprintf( "SELECT * FROM %s WHERE %s LIMIT 1", $self -> _db_table(), join( ' AND ', @where_args ) );
+
+	my $rec = &ORM::Db::getrow( $sql );
+
+	return $self -> new( _rec => $rec );
+}
+
+sub get_many
+{
+	my $self = shift;
+
+	my %args = @_;
+
+	my @outcome = ();
+
+	my @where_args = $self -> form_where( %args );
+
+	my $sql = sprintf( "SELECT * FROM %s WHERE %s", $self -> _db_table(), join( ' AND ', @where_args ) );
+
+	my $sth = &ORM::Db::prep( $sql );
+	$sth -> execute();
+
+	while( my $data = $sth -> fetchrow_hashref() )
+	{
+		my $o = $self -> new( _rec => $data );
+		push @outcome, $o;
+	}
+
+	return @outcome;
+
+}
+
+sub form_where
+{
+	my $self = shift;
+
+	my %args = @_;
+
+	my @where_args = ( '1=1' );
 	foreach my $attr ( keys %args )
 	{
 
 		my $col = &get_db_field_name( $self -> meta() -> get_attribute( $attr ) );
 
 		my $val = $args{ $attr };
+		my $op = '=';
 
-		push @where_args, sprintf( '%s=%s', $col, &ORM::Db::dbq( $val ) );
+		if( ref( $val ) eq 'HASH' )
+		{
+			( $op, $val ) = each %{ $val };
+			$val = &ORM::Db::dbq( $val );
+
+		} elsif( ref( $val ) eq 'ARRAY' )
+		{
+			$op = 'IN';
+			$val = sprintf( '(%s)', join( ',', map { &ORM::Db::dbq( $_ ) } @{ $val } ) );
+		} else
+		{
+			$val = &ORM::Db::dbq( $val );
+		}
+
+		push @where_args, sprintf( '%s %s %s', $col, $op, $val );
 	}
 
-	my $sql = sprintf( "SELECT * FROM %s WHERE %s LIMIT 1", $self -> _db_table(), join( ' AND ', @where_args ) );
-
-	my $rec = &ORM::Db::dbgetrow( $sql );
-
-	return $self -> new( _rec => $rec );
+	return @where_args;
 
 }
 

@@ -30,12 +30,20 @@ sub dbq
 
 }
 
-sub dbgetrow
+sub getrow
 {
 	my $sql = shift;
 
 	return $cached_dbh -> selectrow_hashref( $sql );
 
+}
+
+sub prep
+{
+	my $sql = shift;
+
+	return $cached_dbh -> prepare( $sql );
+	
 }
 
 sub doit
