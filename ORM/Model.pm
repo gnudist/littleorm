@@ -4,15 +4,13 @@ package ORM::Model;
 
 use Moose;
 
-has '_rec' => ( is => 'rw', isa => 'HashRef' );
+has '_rec' => ( is => 'rw', isa => 'HashRef', required => 1 );
 
 use Carp::Assert;
 
 sub BUILD
 {
 	my $self = shift;
-
-	assert( $self -> _rec(), 'rec must be set' );
 
 FXOINoqUOvIG1kAG:
 	foreach my $attr ( $self -> meta() -> get_all_attributes() )
@@ -26,43 +24,46 @@ FXOINoqUOvIG1kAG:
 
 		}
 
-		my $rec_field_name = &get_db_field_name( $attr );
-		my $coerce_from = &descr_attr( $attr, 'coerce_from' );
-		my $foreign_key = &descr_attr( $attr, 'foreign_key' );
-
 		$self -> meta() -> add_attribute( $aname, ( is => 'rw',
 							    isa => $attr -> { 'isa' },
 							    lazy => 1,
 							    metaclass => 'MooseX::MetaDescription::Meta::Attribute',
 							    description => ( &descr_or_undef( $attr ) or {} ),
-							    default => sub {
-								    
-								    my $t = $self -> _rec() -> { $rec_field_name };
-
-								    if( defined $coerce_from )
-								    {
-									    $t = $coerce_from -> ( $t );
-
-								    } elsif( $foreign_key )
-								    {
-									    &load_module( $foreign_key );
-
-									    my $his_pk = $foreign_key -> find_primary_key();
-
-									    $t = $foreign_key -> get( $his_pk -> name() => $t );
-
-								    }
-
-								    return $t;
-
-
-
-
-								    
-							    } ) );
+							    default => sub { $_[ 0 ] -> lazy_build_value( $attr ) } ) );
 		
 	}
 	
+}
+
+sub lazy_build_value
+{
+	my $self = shift;
+	my $attr = shift;
+
+	my $rec_field_name = &get_db_field_name( $attr );
+	my $coerce_from = &descr_attr( $attr, 'coerce_from' );
+	my $foreign_key = &descr_attr( $attr, 'foreign_key' );
+
+	my $r = $self -> _rec();
+	my $t = $self -> _rec() -> { $rec_field_name };
+
+	if( defined $coerce_from )
+	{
+		$t = $coerce_from -> ( $t );
+		
+	} elsif( $foreign_key )
+	{
+		&load_module( $foreign_key );
+		
+		my $his_pk = $foreign_key -> find_primary_key();
+		
+		$t = $foreign_key -> get( $his_pk -> name() => $t );
+		
+	}
+	
+	return $t;
+	
+
 }
 
 sub load_module
@@ -137,12 +138,12 @@ sub form_get_sql
 		}
 	}
 
-	if( my $t = int( $args{ '_limit' } ) )
+	if( my $t = int( $args{ '_limit' } or 0 ) )
 	{
 		$sql .= sprintf( ' LIMIT %d ', $t );
 	}
 
-	if( my $t = int( $args{ '_offset' } ) )
+	if( my $t = int( $args{ '_offset' } or 0 ) )
 	{
 		$sql .= sprintf( ' OFFSET %d ', $t );
 	}
