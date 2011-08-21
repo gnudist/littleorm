@@ -296,7 +296,8 @@ fhFwaEknUtY5xwNr:
 			next fhFwaEknUtY5xwNr;
 		}
 
-		my $col = &get_db_field_name( $self -> meta() -> get_attribute( $attr ) );
+		my $class_attr = $self -> meta() -> get_attribute( $attr );
+		my $col = &get_db_field_name( $class_attr );
 
 		my $val = $args{ $attr };
 		my $op = '=';
@@ -304,15 +305,15 @@ fhFwaEknUtY5xwNr:
 		if( ref( $val ) eq 'HASH' )
 		{
 			( $op, $val ) = each %{ $val };
-			$val = &ORM::Db::dbq( $val );
+			$val = &ORM::Db::dbq( &prep_value_for_db( $class_attr, $val ) );
 
 		} elsif( ref( $val ) eq 'ARRAY' )
 		{
 			$op = 'IN';
-			$val = sprintf( '(%s)', join( ',', map { &ORM::Db::dbq( $_ ) } @{ $val } ) );
+			$val = sprintf( '(%s)', join( ',', map { &ORM::Db::dbq( &prep_value_for_db( $class_attr, $_ ) ) } @{ $val } ) );
 		} else
 		{
-			$val = &ORM::Db::dbq( $val );
+			$val = &ORM::Db::dbq( &prep_value_for_db( $class_attr, $val ) );
 		}
 
 		push @where_args, sprintf( '%s %s %s', $col, $op, $val );
