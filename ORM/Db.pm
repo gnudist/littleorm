@@ -2,6 +2,8 @@ package ORM::Db;
 
 my $cached_dbh = undef;
 
+use Carp::Assert;
+
 sub init
 {
 	my $self = shift;
@@ -55,6 +57,20 @@ sub doit
 sub errstr
 {
 	return $cached_dbh -> errstr();
+}
+
+sub nextval
+{
+	my $sn = shift;
+
+	my $sql = sprintf( "SELECT nextval(%s) AS newval", &dbq( $sn ) );
+
+	assert( my $rec = &getrow( $sql ),
+		sprintf( 'could not get new value from sequence %s: %s',
+			 $sn,
+			 &errstr() ) );
+
+	return $rec -> { 'newval' };
 }
 
 42;

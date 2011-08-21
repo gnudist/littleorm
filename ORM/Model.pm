@@ -77,6 +77,21 @@ sub load_module
 
 }
 
+sub create
+{
+	my $self = shift;
+	my $sql = $self -> form_insert_sql( @_ );
+
+	my $rc = &ORM::Db::doit( $sql );
+
+	if( $rc == 1 )
+	{
+		return $self -> get( @_ );
+	}
+
+	assert( 0, sprintf( "%s: %s", $sql, &ORM::Db::errstr() ) );
+}
+
 sub get
 {
 	my $self = shift;
@@ -101,6 +116,80 @@ sub get_many
 	}
 
 	return @outcome;
+
+}
+
+sub form_insert_sql
+{
+	my $self = shift;
+
+	my %args = @_;
+
+	my @fields = ();
+	my @values = ();
+
+	foreach my $attr ( $self -> meta() -> get_all_attributes() )
+	{
+		my $aname = $attr -> name();
+		unless( $args{ $aname } )
+		{
+			if( my $seqname = &descr_attr( $attr, 'sequence' ) )
+			{
+				my $nv = &ORM::Db::nextval( $seqname );
+
+				$args{ $aname } = $nv;
+			}
+		}
+	}
+
+XmXRGqnrCTqWH52Z:
+	while( my ( $arg, $val ) = each %args )
+	{
+		if( $arg =~ /^_/ )
+		{
+			next XmXRGqnrCTqWH52Z;
+		}
+
+		assert( my $attr = $self -> meta() -> get_attribute( $arg ), 
+			sprintf( 'invalid attr name passed: %s', $arg ) );
+
+		my $field_name = &get_db_field_name( $attr );
+		$val = &prep_value_for_db( $attr, $val );
+		
+		push @fields, $field_name;
+		push @values, $val;
+	}
+
+	my $sql = sprintf( "INSERT INTO %s (%s) VALUES (%s)",
+			   $self -> _db_table(),
+			   join( ',', @fields ),
+			   join( ',', map { &ORM::Db::dbq( $_ ) } @values ) );
+
+	return $sql;
+}
+
+
+sub prep_value_for_db
+{
+	my ( $attr, $value ) = @_;
+
+	my $rv = $value;
+
+	my $coerce_to = &descr_attr( $attr, 'coerce_to' );
+
+	if( defined $coerce_to )
+	{
+		$rv = $coerce_to -> ( $value );
+	}
+
+	if( ref( $value ) and &descr_attr( $attr, 'foreign_key' ) )
+	{
+		my $his_pk = $value -> find_primary_key();
+		my $his_pk_name = $his_pk -> name();
+		$rv = $value -> $his_pk_name();
+	}
+
+	return $rv;
 
 }
 
@@ -219,21 +308,7 @@ ETxc0WxZs0boLUm1:
 			next ETxc0WxZs0boLUm1;
 		}
 
-		my $value = $self -> $aname();
-		my $coerce_to = &descr_attr( $attr, 'coerce_to' );
-
-		if( defined $coerce_to )
-		{
-			$value = $coerce_to -> ( $value );
-		}
-
-		if( ref( $value ) and &descr_attr( $attr, 'foreign_key' ) )
-		{
-			my $his_pk = $value -> find_primary_key();
-			my $his_pk_name = $his_pk -> name();
-			$value = $value -> $his_pk_name();
-		}
-
+		my $value = &prep_value_for_db( $attr, $self -> $aname() );
 		push @upadte_pairs, sprintf( '%s=%s', &get_db_field_name( $attr ), &ORM::Db::dbq( $value ) );
 
 	}
