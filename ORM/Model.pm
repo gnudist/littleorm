@@ -119,6 +119,21 @@ sub get_many
 
 }
 
+sub count
+{
+	my $self = shift;
+
+	my $outcome = 0;
+	my $sql = $self -> form_count_sql( @_ );
+
+	my $r = &ORM::Db::getrow( $sql );
+
+	$outcome = $r -> { 'count' };
+
+	return $outcome;
+
+}
+
 sub form_insert_sql
 {
 	my $self = shift;
@@ -203,6 +218,32 @@ sub form_get_sql
 
 	my $sql = sprintf( "SELECT * FROM %s WHERE %s", $self -> _db_table(), join( ' AND ', @where_args ) );
 
+	$sql .= $self -> form_additional_sql( %args );
+
+	return $sql;
+
+}
+
+sub form_count_sql
+{
+	my $self = shift;
+
+	my %args = @_;
+
+	my @where_args = $self -> form_where( %args );
+
+	my $sql = sprintf( "SELECT count(1) FROM %s WHERE %s", $self -> _db_table(), join( ' AND ', @where_args ) );
+
+	return $sql;
+}
+
+sub form_additional_sql
+{
+	my $self = shift;
+
+	my %args = @_;
+	my $sql = '';
+
 	if( my $t = $args{ '_sortby' } )
 	{
 		if( ref( $t ) eq 'HASH' )
@@ -238,7 +279,6 @@ sub form_get_sql
 	}
 
 	return $sql;
-
 }
 
 sub form_where
@@ -277,9 +317,7 @@ fhFwaEknUtY5xwNr:
 
 		push @where_args, sprintf( '%s %s %s', $col, $op, $val );
 	}
-
 	return @where_args;
-
 }
 
 sub update
@@ -324,12 +362,9 @@ ETxc0WxZs0boLUm1:
 
 	if( $debug )
 	{
-
 		return $sql;
-
 	} else
 	{
-
 		my $rc = &ORM::Db::doit( $sql );
 		
 		unless( $rc == 1 )
