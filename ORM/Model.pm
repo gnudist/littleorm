@@ -8,29 +8,60 @@ has '_rec' => ( is => 'rw', isa => 'HashRef', required => 1 );
 
 use Carp::Assert;
 
-sub BUILD
+sub get
+{
+	my $self = shift;
+	my $sql = $self -> form_get_sql( @_, '_limit' => 1 );
+	my $rec = &ORM::Db::getrow( $sql );
+	return $self -> new( _rec => $rec );
+}
+
+sub get_many
 {
 	my $self = shift;
 
-FXOINoqUOvIG1kAG:
-	foreach my $attr ( $self -> meta() -> get_all_attributes() )
+	my @outcome = ();
+	my $sql = $self -> form_get_sql( @_ );
+	my $sth = &ORM::Db::prep( $sql );
+	$sth -> execute();
+
+	while( my $data = $sth -> fetchrow_hashref() )
 	{
-		my $aname = $attr -> name();
-
-		if( $aname =~ /^_/ )
-		{
-			# internal attrs start with underscore, skip them
-			next FXOINoqUOvIG1kAG;
-
-		}
-
-		$self -> meta() -> add_attribute( $aname, ( is => 'rw',
-							    isa => $attr -> { 'isa' },
-							    lazy => 1,
-							    metaclass => 'MooseX::MetaDescription::Meta::Attribute',
-							    description => ( &descr_or_undef( $attr ) or {} ),
-							    default => sub { $_[ 0 ] -> lazy_build_value( $attr ) } ) );
+		my $o = $self -> new( _rec => $data );
+		push @outcome, $o;
 	}
+
+	return @outcome;
+
+}
+
+sub count
+{
+	my $self = shift;
+
+	my $outcome = 0;
+	my $sql = $self -> form_count_sql( @_ );
+
+	my $r = &ORM::Db::getrow( $sql );
+
+	$outcome = $r -> { 'count' };
+
+	return $outcome;
+}
+
+sub create
+{
+	my $self = shift;
+	my $sql = $self -> form_insert_sql( @_ );
+
+	my $rc = &ORM::Db::doit( $sql );
+
+	if( $rc == 1 )
+	{
+		return $self -> get( @_ );
+	}
+
+	assert( 0, sprintf( "%s: %s", $sql, &ORM::Db::errstr() ) );
 }
 
 sub update
@@ -88,66 +119,34 @@ ETxc0WxZs0boLUm1:
 			   
 }
 
-sub create
-{
-	my $self = shift;
-	my $sql = $self -> form_insert_sql( @_ );
-
-	my $rc = &ORM::Db::doit( $sql );
-
-	if( $rc == 1 )
-	{
-		return $self -> get( @_ );
-	}
-
-	assert( 0, sprintf( "%s: %s", $sql, &ORM::Db::errstr() ) );
-}
-
-sub get
-{
-	my $self = shift;
-	my $sql = $self -> form_get_sql( @_, '_limit' => 1 );
-	my $rec = &ORM::Db::getrow( $sql );
-	return $self -> new( _rec => $rec );
-}
-
-sub get_many
-{
-	my $self = shift;
-
-	my @outcome = ();
-	my $sql = $self -> form_get_sql( @_ );
-	my $sth = &ORM::Db::prep( $sql );
-	$sth -> execute();
-
-	while( my $data = $sth -> fetchrow_hashref() )
-	{
-		my $o = $self -> new( _rec => $data );
-		push @outcome, $o;
-	}
-
-	return @outcome;
-
-}
-
-sub count
-{
-	my $self = shift;
-
-	my $outcome = 0;
-	my $sql = $self -> form_count_sql( @_ );
-
-	my $r = &ORM::Db::getrow( $sql );
-
-	$outcome = $r -> { 'count' };
-
-	return $outcome;
-
-}
-
 ################################################################################
 # Internal functions below
 ################################################################################
+
+sub BUILD
+{
+	my $self = shift;
+
+FXOINoqUOvIG1kAG:
+	foreach my $attr ( $self -> meta() -> get_all_attributes() )
+	{
+		my $aname = $attr -> name();
+
+		if( $aname =~ /^_/ )
+		{
+			# internal attrs start with underscore, skip them
+			next FXOINoqUOvIG1kAG;
+
+		}
+
+		$self -> meta() -> add_attribute( $aname, ( is => 'rw',
+							    isa => $attr -> { 'isa' },
+							    lazy => 1,
+							    metaclass => 'MooseX::MetaDescription::Meta::Attribute',
+							    description => ( &descr_or_undef( $attr ) or {} ),
+							    default => sub { $_[ 0 ] -> lazy_build_value( $attr ) } ) );
+	}
+}
 
 sub lazy_build_value
 {
