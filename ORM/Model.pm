@@ -30,51 +30,62 @@ FXOINoqUOvIG1kAG:
 							    metaclass => 'MooseX::MetaDescription::Meta::Attribute',
 							    description => ( &descr_or_undef( $attr ) or {} ),
 							    default => sub { $_[ 0 ] -> lazy_build_value( $attr ) } ) );
-		
 	}
-	
 }
 
-sub lazy_build_value
+sub update
 {
 	my $self = shift;
-	my $attr = shift;
+	my $debug = shift;
+	
+	assert( my $pkattr = $self -> find_primary_key(), 'cant update without primary key' );
 
-	my $rec_field_name = &get_db_field_name( $attr );
-	my $coerce_from = &descr_attr( $attr, 'coerce_from' );
-	my $foreign_key = &descr_attr( $attr, 'foreign_key' );
+	my @upadte_pairs = ();
 
-	my $r = $self -> _rec();
-	my $t = $self -> _rec() -> { $rec_field_name };
 
-	if( defined $coerce_from )
+ETxc0WxZs0boLUm1:
+	foreach my $attr ( $self -> meta() -> get_all_attributes() )
 	{
-		$t = $coerce_from -> ( $t );
-		
-	} elsif( $foreign_key )
-	{
-		&load_module( $foreign_key );
-		
-		my $his_pk = $foreign_key -> find_primary_key();
-		
-		$t = $foreign_key -> get( $his_pk -> name() => $t );
-		
+		my $aname = $attr -> name();
+
+		if( $aname =~ /^_/ )
+		{
+			# internal attrs start with underscore, skip them
+			next ETxc0WxZs0boLUm1;
+		}
+
+		if( &descr_attr( $attr, 'ignore' ) or &descr_attr( $attr, 'primary_key' ) )
+		{
+			next ETxc0WxZs0boLUm1;
+		}
+
+		my $value = &prep_value_for_db( $attr, $self -> $aname() );
+		push @upadte_pairs, sprintf( '%s=%s', &get_db_field_name( $attr ), &ORM::Db::dbq( $value ) );
+
 	}
-	
-	return $t;
-	
 
-}
+	my $pkname = $pkattr -> name();
 
-sub load_module
-{
-	my $mn = shift;
+	my $sql = sprintf( 'UPDATE %s SET %s WHERE %s=%s',
+			   $self -> _db_table(),
+			   join( ',', @upadte_pairs ),
+			   &get_db_field_name( $pkattr ),
+			   &ORM::Db::dbq( $self -> $pkname() ) );
 
-	$mn =~ s/::/\//g;
-	$mn .= '.pm';
 
-	require( $mn );
-
+	if( $debug )
+	{
+		return $sql;
+	} else
+	{
+		my $rc = &ORM::Db::doit( $sql );
+		
+		unless( $rc == 1 )
+		{
+			assert( 0, sprintf( "%s: %s", $sql, &ORM::Db::errstr() ) );
+		}
+	}
+			   
 }
 
 sub create
@@ -131,6 +142,52 @@ sub count
 	$outcome = $r -> { 'count' };
 
 	return $outcome;
+
+}
+
+################################################################################
+# Internal functions below
+################################################################################
+
+sub lazy_build_value
+{
+	my $self = shift;
+	my $attr = shift;
+
+	my $rec_field_name = &get_db_field_name( $attr );
+	my $coerce_from = &descr_attr( $attr, 'coerce_from' );
+	my $foreign_key = &descr_attr( $attr, 'foreign_key' );
+
+	my $r = $self -> _rec();
+	my $t = $self -> _rec() -> { $rec_field_name };
+
+	if( defined $coerce_from )
+	{
+		$t = $coerce_from -> ( $t );
+		
+	} elsif( $foreign_key )
+	{
+		&load_module( $foreign_key );
+		
+		my $his_pk = $foreign_key -> find_primary_key();
+		
+		$t = $foreign_key -> get( $his_pk -> name() => $t );
+		
+	}
+	
+	return $t;
+	
+
+}
+
+sub load_module
+{
+	my $mn = shift;
+
+	$mn =~ s/::/\//g;
+	$mn .= '.pm';
+
+	require( $mn );
 
 }
 
@@ -321,61 +378,6 @@ fhFwaEknUtY5xwNr:
 	return @where_args;
 }
 
-sub update
-{
-	my $self = shift;
-	my $debug = shift;
-	
-	assert( my $pkattr = $self -> find_primary_key(), 'cant update without primary key' );
-
-	my @upadte_pairs = ();
-
-
-ETxc0WxZs0boLUm1:
-	foreach my $attr ( $self -> meta() -> get_all_attributes() )
-	{
-		my $aname = $attr -> name();
-
-		if( $aname =~ /^_/ )
-		{
-			# internal attrs start with underscore, skip them
-			next ETxc0WxZs0boLUm1;
-		}
-
-		if( &descr_attr( $attr, 'ignore' ) or &descr_attr( $attr, 'primary_key' ) )
-		{
-			next ETxc0WxZs0boLUm1;
-		}
-
-		my $value = &prep_value_for_db( $attr, $self -> $aname() );
-		push @upadte_pairs, sprintf( '%s=%s', &get_db_field_name( $attr ), &ORM::Db::dbq( $value ) );
-
-	}
-
-	my $pkname = $pkattr -> name();
-
-	my $sql = sprintf( 'UPDATE %s SET %s WHERE %s=%s',
-			   $self -> _db_table(),
-			   join( ',', @upadte_pairs ),
-			   &get_db_field_name( $pkattr ),
-			   &ORM::Db::dbq( $self -> $pkname() ) );
-
-
-	if( $debug )
-	{
-		return $sql;
-	} else
-	{
-		my $rc = &ORM::Db::doit( $sql );
-		
-		unless( $rc == 1 )
-		{
-			assert( 0, sprintf( "%s: %s", $sql, &ORM::Db::errstr() ) );
-		}
-	}
-			   
-}
-
 sub find_primary_key
 {
 	my $self = shift;
@@ -387,11 +389,8 @@ sub find_primary_key
 		{
 			return $attr;
 		}
-
 	}
-
 }
-
 
 sub descr_or_undef
 {
@@ -404,8 +403,6 @@ sub descr_or_undef
 	};
 
 	return $rv;
-
-
 }
 
 sub get_db_field_name
@@ -420,7 +417,6 @@ sub get_db_field_name
 	}
 	
 	return $rv;
-
 }
 
 sub descr_attr
@@ -439,7 +435,6 @@ sub descr_attr
 	}
 
 	return $rv;
-
 }
 
 42;
