@@ -11,7 +11,7 @@ use Carp::Assert;
 sub get
 {
 	my $self = shift;
-	my $sql = $self -> form_get_sql( @_, '_limit' => 1 );
+	my $sql = $self -> __form_get_sql( @_, '_limit' => 1 );
 	my $rec = &ORM::Db::getrow( $sql );
 	return $self -> new( _rec => $rec );
 }
@@ -21,7 +21,7 @@ sub get_many
 	my $self = shift;
 
 	my @outcome = ();
-	my $sql = $self -> form_get_sql( @_ );
+	my $sql = $self -> __form_get_sql( @_ );
 	my $sth = &ORM::Db::prep( $sql );
 	$sth -> execute();
 
@@ -40,7 +40,7 @@ sub count
 	my $self = shift;
 
 	my $outcome = 0;
-	my $sql = $self -> form_count_sql( @_ );
+	my $sql = $self -> __form_count_sql( @_ );
 
 	my $r = &ORM::Db::getrow( $sql );
 
@@ -52,7 +52,7 @@ sub count
 sub create
 {
 	my $self = shift;
-	my $sql = $self -> form_insert_sql( @_ );
+	my $sql = $self -> __form_insert_sql( @_ );
 
 	my $rc = &ORM::Db::doit( $sql );
 
@@ -69,7 +69,7 @@ sub update
 	my $self = shift;
 	my $debug = shift;
 	
-	assert( my $pkattr = $self -> find_primary_key(), 'cant update without primary key' );
+	assert( my $pkattr = $self -> __find_primary_key(), 'cant update without primary key' );
 
 	my @upadte_pairs = ();
 
@@ -85,13 +85,13 @@ ETxc0WxZs0boLUm1:
 			next ETxc0WxZs0boLUm1;
 		}
 
-		if( &descr_attr( $attr, 'ignore' ) or &descr_attr( $attr, 'primary_key' ) )
+		if( &__descr_attr( $attr, 'ignore' ) or &__descr_attr( $attr, 'primary_key' ) )
 		{
 			next ETxc0WxZs0boLUm1;
 		}
 
-		my $value = &prep_value_for_db( $attr, $self -> $aname() );
-		push @upadte_pairs, sprintf( '%s=%s', &get_db_field_name( $attr ), &ORM::Db::dbq( $value ) );
+		my $value = &__prep_value_for_db( $attr, $self -> $aname() );
+		push @upadte_pairs, sprintf( '%s=%s', &__get_db_field_name( $attr ), &ORM::Db::dbq( $value ) );
 
 	}
 
@@ -100,7 +100,7 @@ ETxc0WxZs0boLUm1:
 	my $sql = sprintf( 'UPDATE %s SET %s WHERE %s=%s',
 			   $self -> _db_table(),
 			   join( ',', @upadte_pairs ),
-			   &get_db_field_name( $pkattr ),
+			   &__get_db_field_name( $pkattr ),
 			   &ORM::Db::dbq( $self -> $pkname() ) );
 
 
@@ -118,6 +118,32 @@ ETxc0WxZs0boLUm1:
 	}
 			   
 }
+
+# sub meta_change_attr
+# {
+# 	my $self = shift;
+
+# 	my $arg = shift;
+
+# 	my %attrs = @_;
+
+# 	my $arg_obj = $self -> meta() -> find_attribute_by_name( $arg );
+
+# 	my $d = $arg_obj -> description();
+
+# 	while( my ( $k, $v ) = each %attrs )
+# 	{
+# 		if( $v )
+# 		{
+# 			$d -> { $k } = $v;
+# 		} else
+# 		{
+# 			delete $d -> { $k };
+# 		}
+# 	}
+
+# 	$arg_obj -> description( $d );
+# }
 
 ################################################################################
 # Internal functions below
@@ -143,19 +169,19 @@ FXOINoqUOvIG1kAG:
 							    isa => $attr -> { 'isa' },
 							    lazy => 1,
 							    metaclass => 'MooseX::MetaDescription::Meta::Attribute',
-							    description => ( &descr_or_undef( $attr ) or {} ),
-							    default => sub { $_[ 0 ] -> lazy_build_value( $attr ) } ) );
+							    description => ( &__descr_or_undef( $attr ) or {} ),
+							    default => sub { $_[ 0 ] -> __lazy_build_value( $attr ) } ) );
 	}
 }
 
-sub lazy_build_value
+sub __lazy_build_value
 {
 	my $self = shift;
 	my $attr = shift;
 
-	my $rec_field_name = &get_db_field_name( $attr );
-	my $coerce_from = &descr_attr( $attr, 'coerce_from' );
-	my $foreign_key = &descr_attr( $attr, 'foreign_key' );
+	my $rec_field_name = &__get_db_field_name( $attr );
+	my $coerce_from = &__descr_attr( $attr, 'coerce_from' );
+	my $foreign_key = &__descr_attr( $attr, 'foreign_key' );
 
 	my $r = $self -> _rec();
 	my $t = $self -> _rec() -> { $rec_field_name };
@@ -166,9 +192,9 @@ sub lazy_build_value
 		
 	} elsif( $foreign_key )
 	{
-		&load_module( $foreign_key );
+		&__load_module( $foreign_key );
 		
-		my $his_pk = $foreign_key -> find_primary_key();
+		my $his_pk = $foreign_key -> __find_primary_key();
 		
 		$t = $foreign_key -> get( $his_pk -> name() => $t );
 		
@@ -179,7 +205,7 @@ sub lazy_build_value
 
 }
 
-sub load_module
+sub __load_module
 {
 	my $mn = shift;
 
@@ -190,7 +216,7 @@ sub load_module
 
 }
 
-sub form_insert_sql
+sub __form_insert_sql
 {
 	my $self = shift;
 
@@ -204,7 +230,7 @@ sub form_insert_sql
 		my $aname = $attr -> name();
 		unless( $args{ $aname } )
 		{
-			if( my $seqname = &descr_attr( $attr, 'sequence' ) )
+			if( my $seqname = &__descr_attr( $attr, 'sequence' ) )
 			{
 				my $nv = &ORM::Db::nextval( $seqname );
 
@@ -221,11 +247,11 @@ XmXRGqnrCTqWH52Z:
 			next XmXRGqnrCTqWH52Z;
 		}
 
-		assert( my $attr = $self -> meta() -> get_attribute( $arg ), 
+		assert( my $attr = $self -> meta() -> find_attribute_by_name( $arg ), 
 			sprintf( 'invalid attr name passed: %s', $arg ) );
 
-		my $field_name = &get_db_field_name( $attr );
-		$val = &prep_value_for_db( $attr, $val );
+		my $field_name = &__get_db_field_name( $attr );
+		$val = &__prep_value_for_db( $attr, $val );
 		
 		push @fields, $field_name;
 		push @values, $val;
@@ -240,22 +266,22 @@ XmXRGqnrCTqWH52Z:
 }
 
 
-sub prep_value_for_db
+sub __prep_value_for_db
 {
 	my ( $attr, $value ) = @_;
 
 	my $rv = $value;
 
-	my $coerce_to = &descr_attr( $attr, 'coerce_to' );
+	my $coerce_to = &__descr_attr( $attr, 'coerce_to' );
 
 	if( defined $coerce_to )
 	{
 		$rv = $coerce_to -> ( $value );
 	}
 
-	if( ref( $value ) and &descr_attr( $attr, 'foreign_key' ) )
+	if( ref( $value ) and &__descr_attr( $attr, 'foreign_key' ) )
 	{
-		my $his_pk = $value -> find_primary_key();
+		my $his_pk = $value -> __find_primary_key();
 		my $his_pk_name = $his_pk -> name();
 		$rv = $value -> $his_pk_name();
 	}
@@ -264,36 +290,36 @@ sub prep_value_for_db
 
 }
 
-sub form_get_sql
+sub __form_get_sql
 {
 	my $self = shift;
 
 	my %args = @_;
 
-	my @where_args = $self -> form_where( %args );
+	my @where_args = $self -> __form_where( %args );
 
 	my $sql = sprintf( "SELECT * FROM %s WHERE %s", $self -> _db_table(), join( ' AND ', @where_args ) );
 
-	$sql .= $self -> form_additional_sql( %args );
+	$sql .= $self -> __form_additional_sql( %args );
 
 	return $sql;
 
 }
 
-sub form_count_sql
+sub __form_count_sql
 {
 	my $self = shift;
 
 	my %args = @_;
 
-	my @where_args = $self -> form_where( %args );
+	my @where_args = $self -> __form_where( %args );
 
 	my $sql = sprintf( "SELECT count(1) FROM %s WHERE %s", $self -> _db_table(), join( ' AND ', @where_args ) );
 
 	return $sql;
 }
 
-sub form_additional_sql
+sub __form_additional_sql
 {
 	my $self = shift;
 
@@ -312,14 +338,14 @@ sub form_additional_sql
 
 			while( my ( $k, $sort_order ) = each %{ $t } )
 			{
-				my $dbf = &get_db_field_name( $self -> meta() -> get_attribute( $k ) );
+				my $dbf = &__get_db_field_name( $self -> meta() -> find_attribute_by_name( $k ) );
 				push @pairs, sprintf( '%s %s', $dbf, $sort_order );
 			}
 			$sql .= ' ORDER BY ' . join( ',', @pairs );
 		} else
 		{
 			# then its attr name and unspecified order
-			my $dbf = &get_db_field_name( $self -> meta() -> get_attribute( $t ) );
+			my $dbf = &__get_db_field_name( $self -> meta() -> find_attribute_by_name( $t ) );
 			$sql .= ' ORDER BY ' . $dbf;
 		}
 	}
@@ -337,7 +363,7 @@ sub form_additional_sql
 	return $sql;
 }
 
-sub form_where
+sub __form_where
 {
 	my $self = shift;
 
@@ -352,8 +378,9 @@ fhFwaEknUtY5xwNr:
 			next fhFwaEknUtY5xwNr;
 		}
 
-		my $class_attr = $self -> meta() -> get_attribute( $attr );
-		my $col = &get_db_field_name( $class_attr );
+		my $class_attr = $self -> meta() -> find_attribute_by_name( $attr );
+
+		my $col = &__get_db_field_name( $class_attr );
 
 		my $val = $args{ $attr };
 		my $op = '=';
@@ -361,15 +388,15 @@ fhFwaEknUtY5xwNr:
 		if( ref( $val ) eq 'HASH' )
 		{
 			( $op, $val ) = each %{ $val };
-			$val = &ORM::Db::dbq( &prep_value_for_db( $class_attr, $val ) );
+			$val = &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $val ) );
 
 		} elsif( ref( $val ) eq 'ARRAY' )
 		{
 			$op = 'IN';
-			$val = sprintf( '(%s)', join( ',', map { &ORM::Db::dbq( &prep_value_for_db( $class_attr, $_ ) ) } @{ $val } ) );
+			$val = sprintf( '(%s)', join( ',', map { &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $_ ) ) } @{ $val } ) );
 		} else
 		{
-			$val = &ORM::Db::dbq( &prep_value_for_db( $class_attr, $val ) );
+			$val = &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $val ) );
 		}
 
 		push @where_args, sprintf( '%s %s %s', $col, $op, $val );
@@ -377,21 +404,21 @@ fhFwaEknUtY5xwNr:
 	return @where_args;
 }
 
-sub find_primary_key
+sub __find_primary_key
 {
 	my $self = shift;
 
 	foreach my $attr ( $self -> meta() -> get_all_attributes() )
 	{
 
-		if( my $pk = &descr_attr( $attr, 'primary_key' ) )
+		if( my $pk = &__descr_attr( $attr, 'primary_key' ) )
 		{
 			return $attr;
 		}
 	}
 }
 
-sub descr_or_undef
+sub __descr_or_undef
 {
 	my $attr = shift;
 
@@ -404,13 +431,15 @@ sub descr_or_undef
 	return $rv;
 }
 
-sub get_db_field_name
+sub __get_db_field_name
 {
 	my $attr = shift;
 
+	assert( $attr );
+
 	my $rv = $attr -> name();
 
-	if( my $t = &descr_attr( $attr, 'db_field' ) )
+	if( my $t = &__descr_attr( $attr, 'db_field' ) )
 	{
 		$rv = $t;
 	}
@@ -418,14 +447,14 @@ sub get_db_field_name
 	return $rv;
 }
 
-sub descr_attr
+sub __descr_attr
 {
 	my $attr = shift;
 	my $attr_attr_name = shift;
 
 	my $rv = undef;
 
-	if( my $d = &descr_or_undef( $attr ) )
+	if( my $d = &__descr_or_undef( $attr ) )
 	{
 		if( my $t = $d -> { $attr_attr_name } )
 		{
