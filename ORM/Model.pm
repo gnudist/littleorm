@@ -13,7 +13,15 @@ sub get
 	my $self = shift;
 	my $sql = $self -> __form_get_sql( @_, '_limit' => 1 );
 	my $rec = &ORM::Db::getrow( $sql );
-	return $self -> new( _rec => $rec );
+
+	my $rv = undef;
+
+	if( $rec )
+	{
+		$rv = $self -> new( _rec => $rec );
+	}
+
+	return $rv;
 }
 
 sub get_many
