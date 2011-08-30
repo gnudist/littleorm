@@ -24,6 +24,20 @@ sub get
 	return $rv;
 }
 
+sub get_or_create
+{
+	my $self = shift;
+
+	my $r = $self -> get( @_ );
+
+	unless( $r )
+	{
+		$r = $self -> create( @_ );
+	}
+
+	return $r;
+}
+
 sub get_many
 {
 	my $self = shift;
