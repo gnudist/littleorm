@@ -14,7 +14,7 @@ sub _db_table{ 'host' }
 
 # Columns:
 
-has 'foo' => ( metaclass => 'MooseX::MetaDescription::Meta::Attribute',
+has 'foo' => ( metaclass => 'ORM::Meta::Attribute',
 	       is => 'rw',
 	       isa => 'Int',
 	       description => { db_field => 'id',
@@ -23,7 +23,7 @@ has 'foo' => ( metaclass => 'MooseX::MetaDescription::Meta::Attribute',
 
 has 'name' => ( is => 'rw',
 		isa => 'Str',
-		metaclass => 'MooseX::MetaDescription::Meta::Attribute',
+		metaclass => 'ORM::Meta::Attribute',
 		description => { db_field => 'host' } );
 
 

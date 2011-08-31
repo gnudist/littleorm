@@ -17,7 +17,7 @@ sub _db_table{ 'macros' }
 # description.sequence is the name of the sequence from which new
 # value will be taken for create() method
 
-has 'id' => ( metaclass => 'MooseX::MetaDescription::Meta::Attribute',
+has 'id' => ( metaclass => 'ORM::Meta::Attribute',
 	      is => 'rw',
 	      isa => 'Int',
 	      description => { primary_key => 1,
@@ -34,7 +34,7 @@ has 'body' => ( is => 'rw', isa => 'Str' );
 
 has 'host' => ( is => 'rw', 
 		isa => 'Host',
-		metaclass => 'MooseX::MetaDescription::Meta::Attribute',
+		metaclass => 'ORM::Meta::Attribute',
 		description => { foreign_key => 'Host' } );
 
 
@@ -42,7 +42,7 @@ has 'host' => ( is => 'rw',
 
 has 'macrosname' => ( is => 'rw',
 		      isa => 'Str', 
-		      metaclass => 'MooseX::MetaDescription::Meta::Attribute',
+		      metaclass => 'ORM::Meta::Attribute',
 		      description => { db_field => 'name' } );
 
 42;

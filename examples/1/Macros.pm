@@ -14,7 +14,7 @@ sub _db_table{ 'macros' }
 
 # Columns:
 
-has 'id' => ( metaclass => 'MooseX::MetaDescription::Meta::Attribute',
+has 'id' => ( metaclass => 'ORM::Meta::Attribute',
 	      is => 'rw',
 	      isa => 'Int',
 	      description => { primary_key => 1 } );
@@ -30,7 +30,7 @@ has 'body' => ( isa => 'Str' );
 
 has 'macrosname' => ( is => 'rw',
 		      isa => 'Str', 
-		      metaclass => 'MooseX::MetaDescription::Meta::Attribute',
+		      metaclass => 'ORM::Meta::Attribute',
 		      description => { db_field => 'name' } );
 
 
@@ -39,7 +39,7 @@ has 'macrosname' => ( is => 'rw',
 
 has 'lc_macrosname' => ( is => 'rw', # just to absorb Moose warning
 			 isa => 'Str', 
-			 metaclass => 'MooseX::MetaDescription::Meta::Attribute',
+			 metaclass => 'ORM::Meta::Attribute',
 			 description => { db_field => 'name',
 					  coerce_from => sub { lc( $_[ 0 ] ) },
 					  ignore => 1 } );
@@ -51,7 +51,7 @@ has 'lc_macrosname' => ( is => 'rw', # just to absorb Moose warning
 
 has 'splitaddr' => ( is => 'rw',
 		     isa => 'ArrayRef',
-		     metaclass => 'MooseX::MetaDescription::Meta::Attribute',
+		     metaclass => 'ORM::Meta::Attribute',
 		     description => { db_field => 'address',
 				      coerce_from => sub { [ split( //, $_[ 0 ] ) ] },
 				      coerce_to => sub { join( '', @{ $_[ 0 ] } ) } } );
