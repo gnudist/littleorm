@@ -141,31 +141,31 @@ ETxc0WxZs0boLUm1:
 			   
 }
 
-# sub meta_change_attr
-# {
-# 	my $self = shift;
+sub meta_change_attr
+{
+	my $self = shift;
 
-# 	my $arg = shift;
+	my $arg = shift;
 
-# 	my %attrs = @_;
+	my %attrs = @_;
 
-# 	my $arg_obj = $self -> meta() -> find_attribute_by_name( $arg );
+	my $arg_obj = $self -> meta() -> find_attribute_by_name( $arg );
 
-# 	my $d = $arg_obj -> description();
+	my $d = $arg_obj -> description();
 
-# 	while( my ( $k, $v ) = each %attrs )
-# 	{
-# 		if( $v )
-# 		{
-# 			$d -> { $k } = $v;
-# 		} else
-# 		{
-# 			delete $d -> { $k };
-# 		}
-# 	}
+	while( my ( $k, $v ) = each %attrs )
+	{
+		if( $v )
+		{
+			$d -> { $k } = $v;
+		} else
+		{
+			delete $d -> { $k };
+		}
+	}
 
-# 	$arg_obj -> description( $d );
-# }
+	$arg_obj -> description( $d );
+}
 
 ################################################################################
 # Internal functions below

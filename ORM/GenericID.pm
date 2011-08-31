@@ -11,9 +11,10 @@ extends 'ORM::Model';
 
 sub _db_table{ 'CHANGEME' }
 
-has 'id' => ( metaclass => 'MooseX::MetaDescription::Meta::Attribute',
+has 'id' => ( metaclass => 'ORM::Meta::Attribute',
 	      is => 'rw',
 	      isa => 'Int',
 	      description => { primary_key => 1 } );
+
 
 42;
