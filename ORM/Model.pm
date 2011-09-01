@@ -401,6 +401,7 @@ fhFwaEknUtY5xwNr:
 		}
 
 		my $class_attr = $self -> meta() -> find_attribute_by_name( $attr );
+		my $class_attr_isa = $class_attr -> { 'isa' };
 
 		my $col = &__get_db_field_name( $class_attr );
 
