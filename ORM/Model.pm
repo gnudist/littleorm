@@ -190,7 +190,7 @@ FXOINoqUOvIG1kAG:
 		$self -> meta() -> add_attribute( $aname, ( is => 'rw',
 							    isa => $attr -> { 'isa' },
 							    lazy => 1,
-							    metaclass => 'MooseX::MetaDescription::Meta::Attribute',
+							    metaclass => 'ORM::Meta::Attribute',
 							    description => ( &__descr_or_undef( $attr ) or {} ),
 							    default => sub { $_[ 0 ] -> __lazy_build_value( $attr ) } ) );
 	}
