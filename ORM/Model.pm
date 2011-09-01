@@ -414,8 +414,16 @@ fhFwaEknUtY5xwNr:
 
 		} elsif( ref( $val ) eq 'ARRAY' )
 		{
-			$op = 'IN';
-			$val = sprintf( '(%s)', join( ',', map { &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $_ ) ) } @{ $val } ) );
+
+			if( $class_attr_isa eq 'ArrayRef' )
+			{
+				$val = &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $val ) );
+			} else
+			{
+				$op = 'IN';
+				$val = sprintf( '(%s)', join( ',', map { &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $_ ) ) } @{ $val } ) );
+			}
+
 		} else
 		{
 			$val = &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $val ) );

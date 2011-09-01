@@ -12,8 +12,8 @@ extends 'ORM::Model';
 sub _db_table{ 'CHANGEME' }
 
 has 'id' => ( metaclass => 'ORM::Meta::Attribute',
-	      is => 'rw',
 	      isa => 'Int',
+	      is => 'rw',
 	      description => { primary_key => 1 } );
 
 
