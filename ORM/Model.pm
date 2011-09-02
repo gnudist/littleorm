@@ -123,7 +123,7 @@ ETxc0WxZs0boLUm1:
 			   $self -> _db_table(),
 			   join( ',', @upadte_pairs ),
 			   &__get_db_field_name( $pkattr ),
-			   &ORM::Db::dbq( $self -> $pkname() ) );
+			   &ORM::Db::dbq( &__prep_value_for_db( $pkattr, $self -> $pkname() ) ) );
 
 
 	if( $debug )
