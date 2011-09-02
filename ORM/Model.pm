@@ -196,12 +196,19 @@ FXOINoqUOvIG1kAG:
 
 		}
 
-		$self -> meta() -> add_attribute( $aname, ( is => 'rw',
-							    isa => $attr -> { 'isa' },
-							    lazy => 1,
-							    metaclass => 'ORM::Meta::Attribute',
-							    description => ( &__descr_or_undef( $attr ) or {} ),
-							    default => sub { $_[ 0 ] -> __lazy_build_value( $attr ) } ) );
+		if( &__descr_attr( $attr, 'ignore' ) )
+		{
+			$self -> meta() -> add_attribute( $attr -> clone() );
+
+		} else
+		{
+			$self -> meta() -> add_attribute( $aname, ( is => 'rw',
+								    isa => $attr -> { 'isa' },
+								    lazy => 1,
+								    metaclass => 'ORM::Meta::Attribute',
+								    description => ( &__descr_or_undef( $attr ) or {} ),
+								    default => sub { $_[ 0 ] -> __lazy_build_value( $attr ) } ) );
+		}
 	}
 }
 
@@ -426,6 +433,14 @@ sub __form_where
 fhFwaEknUtY5xwNr:
 	foreach my $attr ( keys %args )
 	{
+		my $val = $args{ $attr };
+
+		if( $attr eq '_where' )
+		{
+			push @where_args, $val;
+
+		}
+
 		if( $attr =~ /^_/ ) # skip system agrs, they start with underscore
 		{
 			next fhFwaEknUtY5xwNr;
@@ -442,7 +457,7 @@ fhFwaEknUtY5xwNr:
 
 		my $col = &__get_db_field_name( $class_attr );
 
-		my $val = $args{ $attr };
+
 		my $op = '=';
 
 		if( ref( $val ) eq 'HASH' )
