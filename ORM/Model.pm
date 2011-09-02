@@ -138,7 +138,16 @@ ETxc0WxZs0boLUm1:
 			assert( 0, sprintf( "%s: %s", $sql, &ORM::Db::errstr() ) );
 		}
 	}
-			   
+}
+
+sub delete
+{
+	my $self = shift;
+	my $sql = $self -> __form_delete_sql( @_ );
+
+	my $rc = &ORM::Db::doit( $sql );
+
+	return $rc;
 }
 
 sub meta_change_attr
@@ -312,6 +321,28 @@ sub __prep_value_for_db
 
 }
 
+sub __form_delete_sql
+{
+	my $self = shift;
+
+	my %args = @_;
+
+	if( ref( $self ) )
+	{
+		foreach my $attr ( $self -> meta() -> get_all_attributes() )
+		{
+			my $aname = $attr -> name();
+			$args{ $aname } = $self -> $aname();
+		}
+	}
+
+	my @where_args = $self -> __form_where( %args );
+
+	my $sql = sprintf( "DELETE FROM %s WHERE %s", $self -> _db_table(), join( ' AND ', @where_args ) );
+
+	return $sql;
+}
+
 sub __form_get_sql
 {
 	my $self = shift;
@@ -401,6 +432,12 @@ fhFwaEknUtY5xwNr:
 		}
 
 		my $class_attr = $self -> meta() -> find_attribute_by_name( $attr );
+
+		if( &__descr_attr( $class_attr, 'ignore' ) )
+		{
+			next fhFwaEknUtY5xwNr;
+		}
+
 		my $class_attr_isa = $class_attr -> { 'isa' };
 
 		my $col = &__get_db_field_name( $class_attr );
@@ -410,13 +447,19 @@ fhFwaEknUtY5xwNr:
 
 		if( ref( $val ) eq 'HASH' )
 		{
-			( $op, $val ) = each %{ $val };
-			$val = &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $val ) );
+			if( $class_attr_isa =~ 'HashRef' )
+			{
+				next fhFwaEknUtY5xwNr;
+			} else
+			{
+				( $op, $val ) = each %{ $val };
+				$val = &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $val ) );
+			}
 
 		} elsif( ref( $val ) eq 'ARRAY' )
 		{
 
-			if( $class_attr_isa eq 'ArrayRef' )
+			if( $class_attr_isa =~ 'ArrayRef' )
 			{
 				$val = &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $val ) );
 			} else
