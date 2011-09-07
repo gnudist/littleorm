@@ -202,6 +202,11 @@ FXOINoqUOvIG1kAG:
 
 		} else
 		{
+			if( $attr -> default() )
+			{
+				assert( 0, 'no defaults please in ORM-managed attributes' );
+			}
+
 			$self -> meta() -> add_attribute( $aname, ( is => 'rw',
 								    isa => $attr -> { 'isa' },
 								    lazy => 1,
