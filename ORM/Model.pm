@@ -11,8 +11,11 @@ use Carp::Assert;
 sub get
 {
 	my $self = shift;
-	my $sql = $self -> __form_get_sql( @_, '_limit' => 1 );
-	my $rec = &ORM::Db::getrow( $sql );
+
+	my @args = @_;
+
+	my $sql = $self -> __form_get_sql( @args, '_limit' => 1 );
+	my $rec = &ORM::Db::getrow( $sql, $self -> __get_dbh( @args ) );
 
 	my $rv = undef;
 
@@ -41,10 +44,12 @@ sub get_or_create
 sub get_many
 {
 	my $self = shift;
+	my @args = @_;
 
 	my @outcome = ();
-	my $sql = $self -> __form_get_sql( @_ );
-	my $sth = &ORM::Db::prep( $sql );
+
+	my $sql = $self -> __form_get_sql( @args );
+	my $sth = &ORM::Db::prep( $sql, $self -> __get_dbh( @args ) );
 	$sth -> execute();
 
 	while( my $data = $sth -> fetchrow_hashref() )
@@ -52,6 +57,7 @@ sub get_many
 		my $o = $self -> new( _rec => $data );
 		push @outcome, $o;
 	}
+	$sth -> finish();
 
 	return @outcome;
 
@@ -60,11 +66,12 @@ sub get_many
 sub count
 {
 	my $self = shift;
+	my @args = @_;
 
 	my $outcome = 0;
-	my $sql = $self -> __form_count_sql( @_ );
+	my $sql = $self -> __form_count_sql( @args );
 
-	my $r = &ORM::Db::getrow( $sql );
+	my $r = &ORM::Db::getrow( $sql, $self -> __get_dbh( @args ) );
 
 	$outcome = $r -> { 'count' };
 
@@ -74,16 +81,18 @@ sub count
 sub create
 {
 	my $self = shift;
-	my $sql = $self -> __form_insert_sql( @_ );
+	my @args = @_;
 
-	my $rc = &ORM::Db::doit( $sql );
+	my $sql = $self -> __form_insert_sql( @args );
+
+	my $rc = &ORM::Db::doit( $sql, $self -> __get_dbh( @args ) );
 
 	if( $rc == 1 )
 	{
 		return $self -> get( @_ );
 	}
 
-	assert( 0, sprintf( "%s: %s", $sql, &ORM::Db::errstr() ) );
+	assert( 0, sprintf( "%s: %s", $sql, &ORM::Db::errstr( $self -> __get_dbh( @args ) ) ) );
 }
 
 sub update
@@ -113,7 +122,7 @@ ETxc0WxZs0boLUm1:
 		}
 
 		my $value = &__prep_value_for_db( $attr, $self -> $aname() );
-		push @upadte_pairs, sprintf( '%s=%s', &__get_db_field_name( $attr ), &ORM::Db::dbq( $value ) );
+		push @upadte_pairs, sprintf( '%s=%s', &__get_db_field_name( $attr ), &ORM::Db::dbq( $value, $self -> __get_dbh() ) );
 
 	}
 
@@ -123,7 +132,8 @@ ETxc0WxZs0boLUm1:
 			   $self -> _db_table(),
 			   join( ',', @upadte_pairs ),
 			   &__get_db_field_name( $pkattr ),
-			   &ORM::Db::dbq( &__prep_value_for_db( $pkattr, $self -> $pkname() ) ) );
+			   &ORM::Db::dbq( &__prep_value_for_db( $pkattr, $self -> $pkname() ),
+					  $self -> __get_dbh() ) );
 
 
 	if( $debug )
@@ -131,11 +141,11 @@ ETxc0WxZs0boLUm1:
 		return $sql;
 	} else
 	{
-		my $rc = &ORM::Db::doit( $sql );
+		my $rc = &ORM::Db::doit( $sql, $self -> __get_dbh() );
 		
 		unless( $rc == 1 )
 		{
-			assert( 0, sprintf( "%s: %s", $sql, &ORM::Db::errstr() ) );
+			assert( 0, sprintf( "%s: %s", $sql, &ORM::Db::errstr( $self -> __get_dbh() ) ) );
 		}
 	}
 }
@@ -143,9 +153,12 @@ ETxc0WxZs0boLUm1:
 sub delete
 {
 	my $self = shift;
-	my $sql = $self -> __form_delete_sql( @_ );
 
-	my $rc = &ORM::Db::doit( $sql );
+	my @args = @_;
+
+	my $sql = $self -> __form_delete_sql( @args );
+
+	my $rc = &ORM::Db::doit( $sql, $self -> __get_dbh( @args ) );
 
 	return $rc;
 }
@@ -264,6 +277,8 @@ sub __form_insert_sql
 	my @fields = ();
 	my @values = ();
 
+	my $dbh = $self -> __get_dbh( %args );
+
 	foreach my $attr ( $self -> meta() -> get_all_attributes() )
 	{
 		my $aname = $attr -> name();
@@ -271,7 +286,7 @@ sub __form_insert_sql
 		{
 			if( my $seqname = &__descr_attr( $attr, 'sequence' ) )
 			{
-				my $nv = &ORM::Db::nextval( $seqname );
+				my $nv = &ORM::Db::nextval( $seqname, $dbh );
 
 				$args{ $aname } = $nv;
 			}
@@ -299,7 +314,7 @@ XmXRGqnrCTqWH52Z:
 	my $sql = sprintf( "INSERT INTO %s (%s) VALUES (%s)",
 			   $self -> _db_table(),
 			   join( ',', @fields ),
-			   join( ',', map { &ORM::Db::dbq( $_ ) } @values ) );
+			   join( ',', map { &ORM::Db::dbq( $_, $dbh ) } @values ) );
 
 	return $sql;
 }
@@ -437,6 +452,9 @@ sub __form_where
 
 	my @where_args = ( '1=1' );
 
+	my $dbh = $self -> __get_dbh( @args );
+
+
 fhFwaEknUtY5xwNr:
 	while( my $attr = shift @args )
 	{
@@ -477,7 +495,8 @@ fhFwaEknUtY5xwNr:
 				my %t = %{ $val };
 				( $op, $val ) = each %t;
 
-				$val = &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $val ) );
+				$val = &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $val ),
+						      $dbh );
 			}
 
 		} elsif( ref( $val ) eq 'ARRAY' )
@@ -485,16 +504,19 @@ fhFwaEknUtY5xwNr:
 
 			if( $class_attr_isa =~ 'ArrayRef' )
 			{
-				$val = &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $val ) );
+				$val = &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $val ),
+						      $dbh );
 			} else
 			{
 				$op = 'IN';
-				$val = sprintf( '(%s)', join( ',', map { &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $_ ) ) } @{ $val } ) );
+				$val = sprintf( '(%s)', join( ',', map { &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $_ ),
+											$dbh ) } @{ $val } ) );
 			}
 
 		} else
 		{
-			$val = &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $val ) );
+			$val = &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $val ),
+					      $dbh );
 		}
 
 		push @where_args, sprintf( '%s %s %s', $col, $op, $val );
@@ -561,6 +583,70 @@ sub __descr_attr
 	}
 
 	return $rv;
+}
+
+sub __get_dbh
+{
+	my $self = shift;
+
+	my %args = @_;
+
+	my $dbh = $self -> __get_class_dbh();
+
+	unless( $dbh )
+	{
+		if( my $t = $args{ '_dbh' } )
+		{
+			$dbh = $t;
+			$self -> __set_class_dbh( $dbh );
+		}
+	}
+
+	unless( $dbh )
+	{
+		if( my $t = &ORM::Db::get_dbh() )
+		{
+			$dbh = $t;
+			$self -> __set_class_dbh( $dbh );
+		}
+	}
+
+	return $dbh;
+}
+
+sub __get_class_dbh
+{
+
+	my $self = shift;
+
+	my $calling_package = ( ref( $self ) or $self );
+
+	my $dbh = undef;
+
+	{
+		no strict "refs";
+		$dbh = ${ $calling_package . "::_dbh" };
+	}
+
+	return $dbh;
+
+	
+}
+
+sub __set_class_dbh
+{
+	my $self = shift;
+
+	my $calling_package = ( ref( $self ) or $self );
+
+	my $dbh = shift;
+
+
+	{
+		no strict "refs";
+		${ $calling_package . "::_dbh" } = $dbh;
+	}
+
 }
 
 42;
