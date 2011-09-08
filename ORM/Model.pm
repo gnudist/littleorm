@@ -474,7 +474,9 @@ fhFwaEknUtY5xwNr:
 				next fhFwaEknUtY5xwNr;
 			} else
 			{
-				( $op, $val ) = each %{ $val };
+				my %t = %{ $val };
+				( $op, $val ) = each %t;
+
 				$val = &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $val ) );
 			}
 
