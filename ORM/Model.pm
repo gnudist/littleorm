@@ -248,8 +248,8 @@ sub __lazy_build_value
 		
 		my $his_pk = $foreign_key -> __find_primary_key();
 		
-		$t = $foreign_key -> get( $his_pk -> name() => $t );
-		
+		$t = $foreign_key -> get( $his_pk -> name() => $t,
+					  _dbh => $self -> __get_dbh() );
 	}
 	
 	return $t;
