@@ -333,7 +333,8 @@ sub __form_delete_sql
 {
 	my $self = shift;
 
-	my %args = @_;
+	my @args = @_;
+	my %args = @args;
 
 	if( ref( $self ) )
 	{
@@ -355,13 +356,14 @@ sub __form_get_sql
 {
 	my $self = shift;
 
-	my %args = @_;
+	my @args = @_;
+	my %args = @args;
 
-	my @where_args = $self -> __form_where( %args );
+	my @where_args = $self -> __form_where( @args );
 
-	my $sql = sprintf( "SELECT * FROM %s WHERE %s", $self -> _db_table(), join( ' AND ', @where_args ) );
+	my $sql = sprintf( "SELECT * FROM %s WHERE %s", $self -> _db_table(), join( ' ' . ( $args{ '_logic' } or 'AND' ) . ' ', @where_args ) );
 
-	$sql .= $self -> __form_additional_sql( %args );
+	$sql .= $self -> __form_additional_sql( @args );
 
 	return $sql;
 
@@ -371,11 +373,12 @@ sub __form_count_sql
 {
 	my $self = shift;
 
-	my %args = @_;
+	my @args = @_;
+	my %args = @args;
 
-	my @where_args = $self -> __form_where( %args );
+	my @where_args = $self -> __form_where( @args );
 
-	my $sql = sprintf( "SELECT count(1) FROM %s WHERE %s", $self -> _db_table(), join( ' AND ', @where_args ) );
+	my $sql = sprintf( "SELECT count(1) FROM %s WHERE %s", $self -> _db_table(), join( ' ' . ( $args{ '_logic' } or 'AND' ) . ' ', @where_args ) );
 
 	return $sql;
 }
@@ -384,7 +387,9 @@ sub __form_additional_sql
 {
 	my $self = shift;
 
-	my %args = @_;
+	my @args = @_;
+	my %args = @args;
+
 	my $sql = '';
 
 	if( my $t = $args{ '_sortby' } )
@@ -428,13 +433,14 @@ sub __form_where
 {
 	my $self = shift;
 
-	my %args = @_;
+	my @args = @_;
 
 	my @where_args = ( '1=1' );
+
 fhFwaEknUtY5xwNr:
-	foreach my $attr ( keys %args )
+	while( my $attr = shift @args )
 	{
-		my $val = $args{ $attr };
+		my $val = shift @args;
 
 		if( $attr eq '_where' )
 		{
