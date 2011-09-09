@@ -4,7 +4,7 @@ package ORM::Model;
 
 use Moose;
 
-has '_rec' => ( is => 'rw', isa => 'HashRef', required => 1 );
+has '_rec' => ( is => 'rw', isa => 'HashRef', required => 1, metaclass => 'ORM::Meta::Attribute', description => { ignore => 1 } );
 
 use Carp::Assert;
 
@@ -116,7 +116,11 @@ ETxc0WxZs0boLUm1:
 			next ETxc0WxZs0boLUm1;
 		}
 
-		if( &__descr_attr( $attr, 'ignore' ) or &__descr_attr( $attr, 'primary_key' ) )
+		if( &__descr_attr( $attr, 'ignore' ) 
+		    or 
+		    &__descr_attr( $attr, 'primary_key' )
+		    or
+		    &__descr_attr( $attr, 'ignore_write' ) )
 		{
 			next ETxc0WxZs0boLUm1;
 		}
@@ -304,6 +308,13 @@ XmXRGqnrCTqWH52Z:
 		assert( my $attr = $self -> meta() -> find_attribute_by_name( $arg ), 
 			sprintf( 'invalid attr name passed: %s', $arg ) );
 
+		if( &__descr_attr( $attr, 'ignore' ) 
+		    or 
+		    &__descr_attr( $attr, 'ignore_write' ) )
+		{
+			next XmXRGqnrCTqWH52Z;
+		}
+
 		my $field_name = &__get_db_field_name( $attr );
 		$val = &__prep_value_for_db( $attr, $val );
 		
@@ -367,6 +378,35 @@ sub __form_delete_sql
 	return $sql;
 }
 
+sub __collect_field_names
+{
+	my $self = shift;
+
+	my @rv = ();
+
+QGVfwMGQEd15mtsn:
+	foreach my $attr ( $self -> meta() -> get_all_attributes() )
+	{
+		
+		my $aname = $attr -> name();
+
+		if( $aname =~ /^_/ )
+		{
+			next QGVfwMGQEd15mtsn;
+		}
+
+		if( &__descr_attr( $attr, 'ignore' ) )
+		{
+			next QGVfwMGQEd15mtsn;
+		}
+
+		push @rv, &__get_db_field_name( $attr );
+		
+	}
+
+	return @rv;
+}
+
 sub __form_get_sql
 {
 	my $self = shift;
@@ -376,7 +416,12 @@ sub __form_get_sql
 
 	my @where_args = $self -> __form_where( @args );
 
-	my $sql = sprintf( "SELECT * FROM %s WHERE %s", $self -> _db_table(), join( ' ' . ( $args{ '_logic' } or 'AND' ) . ' ', @where_args ) );
+	my @fields_names = $self -> __collect_field_names();
+
+	my $sql = sprintf( "SELECT %s FROM %s WHERE %s",
+			   join( ',', @fields_names ),
+			   $self -> _db_table(), 
+			   join( ' ' . ( $args{ '_logic' } or 'AND' ) . ' ', @where_args ) );
 
 	$sql .= $self -> __form_additional_sql( @args );
 

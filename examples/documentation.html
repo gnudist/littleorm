@@ -1,0 +1,107 @@
+<html>
+<head>
+<title> LittleORM documentation </title>
+</head>
+<body>
+
+<h1>LittleORM documentation</h1>
+
+<p>This is brief documentation for LittleORM.</p>
+
+<p>LittleORM is a small simple ORM writter in Perl. It works with PostgreSQL.</p>
+
+<h2>Attributes options</h2>
+
+<p>Possible attribute description options, used by ORM:</p>
+
+<ul>
+
+<li><tt>coerce_from</tt> - sub ref used to convert DB value into class attribute type value</li>
+
+<li><tt>coerce_to</tt> - sub ref used to convert attribute type value to DB field value</li>
+
+<li><tt>db_field</tt> - string, DB field name, if differs from attribute name</li>
+
+<li><tt>ignore</tt> - bool, if present attribute is totally ignored by ORM and
+         passed as is into created objects</li>
+
+<li><tt>ignore_write</tt> - bool, if present attribute ignored in create()/update() methods</li>
+
+<li><tt>primary_key</tt> - bool, sets table primary key</li>
+
+<li><tt>sequence</tt> - string, sequence name which can be used to get new values for create() from
+
+</ul>
+
+<h2>Objects selecting arguments</h2>
+
+<p>coerce_to() or foreign_key are always applied to values.</p>
+
+1. Exact scalar match.<br>
+
+<pre style="background-color:#dddddd;padding:20px">
+
+my @objects = SomeORMClass -> get_many( attr => $value );
+
+# ... WHERE attr='$value'
+
+</pre>
+
+2. Array of values.<br>
+
+<pre style="background-color:#dddddd;padding:20px">
+
+my @objects = SomeORMClass -> get_many( id => [ 1, 2, 3 ] );
+
+# ... WHERE attr IN ('1', '2', '3')
+
+
+</pre>
+
+3. More complex clauses.
+
+<pre style="background-color:#dddddd;padding:20px">
+
+my @objects = SomeORMClass -> get_many( id => { '>', 10 },
+                                        id => { '<', 100 },
+                                        name => { 'LIKE', 'Test%' } );
+
+# ... WHERE id > '10' AND id < '100' AND name LIKE 'Test%'
+
+</pre>
+
+4. Plain SQL where clause.
+
+<pre style="background-color:#dddddd;padding:20px">
+
+my @objects = SomeORMClass -> get_many( _where => 'host IN (select id from hosts where id>10' );
+
+# Can be written as:
+
+my @objects = SomeORMClass -> get_many( host => [ HostORMClass -> get_many( id => { '>', 10 } ) ] );
+
+</pre>
+
+5. OR logic in conditions.
+
+<pre style="background-color:#dddddd;padding:20px">
+
+my @objects = SomeORMClass -> get_many( id => { '>', 10 },
+                                        id => { '<', 100 },
+				        _logic => 'OR' );
+
+
+# ... WHERE id > '10' OR id < '100' 
+
+</pre>
+
+
+<h2>More examples</h2>
+
+Should be somewhere around.
+
+<br>
+<br>
+
+</body>
+</html>
