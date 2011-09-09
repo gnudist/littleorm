@@ -27,6 +27,25 @@ sub get
 	return $rv;
 }
 
+sub values_list
+{
+	my ( $self, $fields, $args ) = @_;
+
+	# example: @values = Class -> values_list( [ 'id', 'name' ], [ something => { '>', 100 } ] );
+	# will return ( [ id, name ], [ id1, name1 ], ... )
+
+	my @rv = ();
+
+	foreach my $o ( $self -> get_many( @{ $args } ) )
+	{
+		my @l = map { $o -> $_() } @{ $fields };
+
+		push @rv, \@l;
+	}
+
+	return @rv;
+}
+
 sub get_or_create
 {
 	my $self = shift;
