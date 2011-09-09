@@ -599,6 +599,7 @@ sub __get_dbh
 		{
 			$dbh = $t;
 			$self -> __set_class_dbh( $dbh );
+			ORM::Db -> __set_default_if_not_set( $dbh );
 		}
 	}
 

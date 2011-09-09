@@ -4,6 +4,17 @@ my $cached_dbh = undef;
 
 use Carp::Assert;
 
+sub __set_default_if_not_set
+{
+	my ( $self, $dbh ) = @_;
+
+	unless( my $t = $self -> get_dbh() )
+	{
+		# small racecond :)
+		$self -> init( $dbh );
+	}
+}
+
 sub init
 {
 	my ( $self, $dbh ) = @_;
