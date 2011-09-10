@@ -225,25 +225,24 @@ FXOINoqUOvIG1kAG:
 	{
 		my $aname = $attr -> name();
 
-		if( $aname =~ /^_/ )
+		my $orm_initialized_attr_desc_option = 'orm_initialized_attr';
+
+		if( ( $aname =~ /^_/ ) or &__descr_attr( $attr, 'ignore' ) or &__descr_attr( $attr, $orm_initialized_attr_desc_option ) )
 		{
 			# internal attrs start with underscore, skip them
 			next FXOINoqUOvIG1kAG;
-
 		}
 
-		if( &__descr_attr( $attr, 'ignore' ) )
 		{
-			$self -> meta() -> add_attribute( $attr -> clone() );
+			my $newdescr = ( &__descr_or_undef( $attr ) or {} );
+			$newdescr -> { $orm_initialized_attr_desc_option } = 1;
 
-		} else
-		{
 			$attr -> default( undef );
 			$self -> meta() -> add_attribute( $aname, ( is => 'rw',
 								    isa => $attr -> { 'isa' },
 								    lazy => 1,
 								    metaclass => 'ORM::Meta::Attribute',
-								    description => ( &__descr_or_undef( $attr ) or {} ),
+								    description => $newdescr,
 								    default => sub { $_[ 0 ] -> __lazy_build_value( $attr ) } ) );
 		}
 	}
