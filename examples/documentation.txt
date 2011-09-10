@@ -1,0 +1,201 @@
+LittleORM documentation
+
+This is brief documentation for LittleORM.
+
+LittleORM is a small simple ORM written in Perl. It works with PostgreSQL. It has foreign constraints (even between different databases) and flexible objects selection.
+Available methods
+CLASS -> get();
+
+Select one record from DB.
+
+my $obj = SomeORMClass -> get( id => 123 );
+
+Returns undef if no matching record exists.
+
+CLASS -> get_or_create();
+
+Select one attribute from DB. If not exists, record is created. Always returns object.
+
+my $obj = SomeORMClass -> get_or_create( id => 123 );
+
+CLASS -> get_many();
+
+Select many records from DB.
+
+my @obj = SomeORMClass -> get_many( id => 123 );
+
+Returns array of matching records (can be empty).
+
+CLASS -> create();
+
+INSERTs new record into DB. Returns its object.
+
+my $new_obj = SomeORMClass -> create( id => 123,
+                                      name => 'test' );
+
+$object -> update();
+
+UPDATEs changes (if any) to DB.
+
+my $obj = SomeORMClass -> get( id => 123 );
+
+$obj -> name( "changed" );
+
+$obj -> update();
+
+$object -> delete();
+
+DELETEs record from DB.
+
+my $obj = SomeORMClass -> get( id => 123 );
+
+if( something( $obj ) )
+{
+        $obj -> delete();
+}
+
+CLASS -> delete();
+
+DELETEs records from DB specified with conditions.
+
+SomeORMClass -> delete( id => 123 );
+
+# deletes all from table (no where clause):
+
+SomeORMClass -> delete();
+
+CLASS -> count();
+
+Returns matching records count.
+
+my $count = SomeORMClass -> count( id => { '>', 123 } );
+
+printf( "we have %d objects with id more that 123", $count );
+
+CLASS -> values_list();
+
+Returns list of class attribute values, but not class itself.
+
+my @values = SomeORMClass -> values_list( [ 'id', 'name' ], [ id => { '>', 123 } ] );
+
+
+# @values = ( [ id1, name1 ],
+#             [ id2, name2 ], ... );
+
+
+CLASS -> meta_change_attr();
+
+For changing attributes in child classes.
+
+package MyNewClass;
+
+use Moose;
+
+extends "ORM::GenericID";
+
+sub _db_table { "my_table" }
+
+# add sequence to ID attribute:
+
+__PACKAGE__ -> meta_change_attr( 'id', sequence => 'my_table_seq' );
+
+Attributes options
+
+Possible attribute description options, used by ORM:
+
+    coerce_from - sub ref used to convert DB value into class attribute type value
+    coerce_to - sub ref used to convert attribute type value to DB field value
+    db_field - string, DB field name, if differs from attribute name
+    foreign_key - another ORM class name
+    ignore - bool, if present attribute is totally ignored by ORM and passed as is into created objects
+    ignore_write - bool, if present attribute ignored in create()/update() methods
+    primary_key - bool, sets table primary key
+    sequence - string, sequence name which can be used to get new values for create() from 
+
+Some attributes examples.
+... metaclass => 'ORM::Meta::Attribute' ... is required for Moose to keep extra description attributes used by ORM.
+
+has 'id' => ( metaclass => 'ORM::Meta::Attribute',
+	      isa => 'Int',
+	      is => 'rw',
+	      description => { primary_key => 1 } );
+
+# FK
+
+has 'object' => ( metaclass => 'ORM::Meta::Attribute',
+	          isa => 'ExampleObject',
+	          is => 'rw',
+	          description => { db_field => 'objid',
+                                   foreign_key => 'ExampleObject' } );
+
+
+# No FK, but object attribute:
+
+has 'object' => ( metaclass => 'ORM::Meta::Attribute',
+	          isa => 'ExampleObject',
+	          is => 'rw',
+	          description => { db_field => 'objid',
+                                   corce_from => sub { ExampleObject -> new( id => $_[ 0 ] ) },
+                                   coerce_to => sub { $_[ 0 ] -> id() } } );
+
+
+# No update necessary:
+
+has 'object' => ( metaclass => 'ORM::Meta::Attribute',
+	          isa => 'ExampleObject',
+	          is => 'rw',
+	          description => { db_field => 'objid',
+                                   corce_from => sub { ExampleObject -> new( id => $_[ 0 ] ) },
+                                   ignore_write => 1 } );
+
+
+
+Objects selecting arguments
+
+coerce_to() or foreign_key are always applied to values.
+1. Exact scalar match.
+
+my @objects = SomeORMClass -> get_many( attr => $value );
+
+# ... WHERE attr='$value'
+
+
+2. Array of values.
+
+my @objects = SomeORMClass -> get_many( id => [ 1, 2, 3 ] );
+
+# ... WHERE attr IN ('1', '2', '3')
+
+
+
+3. More complex clauses.
+
+my @objects = SomeORMClass -> get_many( id => { '>', 10 },
+                                        id => { '<', 100 },
+                                        name => { 'LIKE', 'Test%' } );
+
+# ... WHERE id > '10' AND id < '100' AND name LIKE 'Test%'
+
+
+4. Plain SQL where clause.
+
+my @objects = SomeORMClass -> get_many( _where => 'host IN (select id from hosts where id>10' );
+
+# Can be written as:
+
+my @objects = SomeORMClass -> get_many( host => [ HostORMClass -> get_many( id => { '>', 10 } ) ] );
+
+
+5. OR logic in conditions.
+
+my @objects = SomeORMClass -> get_many( id => { '>', 10 },
+                                        id => { '<', 100 },
+				        _logic => 'OR' );
+
+
+# ... WHERE id > '10' OR id < '100' 
+
+
+More examples
+Should be somewhere around.
+

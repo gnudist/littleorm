@@ -12,6 +12,156 @@
 PostgreSQL. It has foreign constraints (even between different databases) and
 flexible objects selection.</p>
 
+<h2>Available methods</h2>
+
+<h3><tt>CLASS -> get();</tt></h3>
+
+<p>Select one record from DB.
+
+<pre style="background-color:#dddddd;padding:20px">
+my $obj = SomeORMClass -> get( id => 123 );
+</pre>
+
+Returns undef if no matching record exists.
+
+</p>
+
+<h3><tt>CLASS -> get_or_create();</tt></h3>
+
+<p>Select one attribute from DB. If not exists, record is created. Always returns object.
+
+<pre style="background-color:#dddddd;padding:20px">
+my $obj = SomeORMClass -> get_or_create( id => 123 );
+</pre>
+
+
+</p>
+
+
+<h3><tt>CLASS -> get_many();</tt></h3>
+
+<p>Select many records from DB.
+
+<pre style="background-color:#dddddd;padding:20px">
+my @obj = SomeORMClass -> get_many( id => 123 );
+</pre>
+
+Returns array of matching records (can be empty).
+
+</p>
+
+
+<h3><tt>CLASS -> create();</tt></h3>
+
+<p>INSERTs new record into DB. Returns its object.
+
+<pre style="background-color:#dddddd;padding:20px">
+my $new_obj = SomeORMClass -> create( id => 123,
+                                      name => 'test' );
+</pre>
+
+</p>
+
+
+
+<h3><tt>$object -> update();</tt></h3>
+
+<p>UPDATEs changes (if any) to DB.
+
+<pre style="background-color:#dddddd;padding:20px">
+my $obj = SomeORMClass -> get( id => 123 );
+
+$obj -> name( "changed" );
+
+$obj -> update();
+</pre>
+
+</p>
+
+
+<h3><tt>$object -> delete();</tt></h3>
+
+<p>DELETEs record from DB.
+
+<pre style="background-color:#dddddd;padding:20px">
+my $obj = SomeORMClass -> get( id => 123 );
+
+if( something( $obj ) )
+{
+        $obj -> delete();
+}
+</pre>
+
+</p>
+
+
+
+<h3><tt>CLASS -> delete();</tt></h3>
+
+<p>DELETEs records from DB specified with conditions.
+
+<pre style="background-color:#dddddd;padding:20px">
+SomeORMClass -> delete( id => 123 );
+
+# deletes all from table (no where clause):
+
+SomeORMClass -> delete();
+</pre>
+
+</p>
+
+
+<h3><tt>CLASS -> count();</tt></h3>
+
+<p>Returns matching records count.
+
+<pre style="background-color:#dddddd;padding:20px">
+my $count = SomeORMClass -> count( id => { '>', 123 } );
+
+printf( "we have %d objects with id more that 123", $count );
+</pre>
+
+</p>
+
+
+<h3><tt>CLASS -> values_list();</tt></h3>
+
+
+<p>Returns list of class attribute values, but not class itself.
+
+<pre style="background-color:#dddddd;padding:20px">
+my @values = SomeORMClass -> values_list( [ 'id', 'name' ], [ id => { '>', 123 } ] );
+
+
+# @values = ( [ id1, name1 ],
+#             [ id2, name2 ], ... );
+
+</pre>
+
+</p>
+
+
+<h3><tt>CLASS -> meta_change_attr();</tt></h3>
+
+<p>For changing attributes in child classes.
+
+<pre style="background-color:#dddddd;padding:20px">
+
+package MyNewClass;
+
+use Moose;
+
+extends "ORM::GenericID";
+
+sub _db_table { "my_table" }
+
+# add sequence to ID attribute:
+
+__PACKAGE__ -> meta_change_attr( 'id', sequence => 'my_table_seq' );
+</pre>
+
+</p>
+
 <h2>Attributes options</h2>
 
 <p>Possible attribute description options, used by ORM:</p>
@@ -24,6 +174,8 @@ flexible objects selection.</p>
 
 <li><tt>db_field</tt> - string, DB field name, if differs from attribute name</li>
 
+<li><tt>foreign_key</tt> - another ORM class name</li>
+
 <li><tt>ignore</tt> - bool, if present attribute is totally ignored by ORM and
          passed as is into created objects</li>
 
@@ -34,6 +186,55 @@ flexible objects selection.</p>
 <li><tt>sequence</tt> - string, sequence name which can be used to get new values for create() from
 
 </ul>
+
+<p>Some attributes examples.</p>
+
+
+<tt> ... metaclass => 'ORM::Meta::Attribute' ... </tt> is required for Moose to keep extra description attributes used by ORM.
+
+<pre style="background-color:#dddddd;padding:20px">
+
+has 'id' => ( metaclass => 'ORM::Meta::Attribute',
+	      isa => 'Int',
+	      is => 'rw',
+	      description => { primary_key => 1 } );
+</pre>
+
+<pre style="background-color:#dddddd;padding:20px">
+# FK
+
+has 'object' => ( metaclass => 'ORM::Meta::Attribute',
+	          isa => 'ExampleObject',
+	          is => 'rw',
+	          description => { db_field => 'objid',
+                                   foreign_key => 'ExampleObject' } );
+
+</pre>
+
+<pre style="background-color:#dddddd;padding:20px">
+# No FK, but object attribute:
+
+has 'object' => ( metaclass => 'ORM::Meta::Attribute',
+	          isa => 'ExampleObject',
+	          is => 'rw',
+	          description => { db_field => 'objid',
+                                   corce_from => sub { ExampleObject -> new( id => $_[ 0 ] ) },
+                                   coerce_to => sub { $_[ 0 ] -> id() } } );
+
+</pre>
+
+<pre style="background-color:#dddddd;padding:20px">
+# No update necessary:
+
+has 'object' => ( metaclass => 'ORM::Meta::Attribute',
+	          isa => 'ExampleObject',
+	          is => 'rw',
+	          description => { db_field => 'objid',
+                                   corce_from => sub { ExampleObject -> new( id => $_[ 0 ] ) },
+                                   ignore_write => 1 } );
+
+
+</pre>
 
 <h2>Objects selecting arguments</h2>
 
