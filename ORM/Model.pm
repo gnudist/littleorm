@@ -1,4 +1,5 @@
 use ORM::Db;
+use ORM::Db::Field;
 
 package ORM::Model;
 
@@ -225,7 +226,7 @@ FXOINoqUOvIG1kAG:
 	{
 		my $aname = $attr -> name();
 
-		my $orm_initialized_attr_desc_option = 'orm_initialized_attr';
+		my $orm_initialized_attr_desc_option = 'orm_initialized_attr' . ref( $self );
 
 		if( ( $aname =~ /^_/ ) or &__descr_attr( $attr, 'ignore' ) or &__descr_attr( $attr, $orm_initialized_attr_desc_option ) )
 		{
@@ -255,7 +256,6 @@ sub __lazy_build_value
 
 	my $rec_field_name = &__get_db_field_name( $attr );
 	my $coerce_from = &__descr_attr( $attr, 'coerce_from' );
-	my $foreign_key = &__descr_attr( $attr, 'foreign_key' );
 
 	my $r = $self -> _rec();
 	my $t = $self -> _rec() -> { $rec_field_name };
@@ -264,7 +264,7 @@ sub __lazy_build_value
 	{
 		$t = $coerce_from -> ( $t );
 		
-	} elsif( $foreign_key )
+	} elsif( my $foreign_key = &__descr_attr( $attr, 'foreign_key' ) )
 	{
 		&__load_module( $foreign_key );
 		
@@ -275,8 +275,6 @@ sub __lazy_build_value
 	}
 	
 	return $t;
-	
-
 }
 
 sub __load_module
@@ -534,7 +532,8 @@ fhFwaEknUtY5xwNr:
 			next fhFwaEknUtY5xwNr;
 		}
 
-		my $class_attr = $self -> meta() -> find_attribute_by_name( $attr );
+		assert( my $class_attr = $self -> meta() -> find_attribute_by_name( $attr ),
+			sprintf( 'invalid non-system attribute in where: %s', $attr ) );
 
 		if( &__descr_attr( $class_attr, 'ignore' ) )
 		{
@@ -545,8 +544,8 @@ fhFwaEknUtY5xwNr:
 
 		my $col = &__get_db_field_name( $class_attr );
 
-
 		my $op = '=';
+		my $field = ORM::Db::Field -> by_type( &__descr_attr( $class_attr, 'db_field_type' ) or $class_attr_isa );
 
 		if( ref( $val ) eq 'HASH' )
 		{
@@ -582,7 +581,12 @@ fhFwaEknUtY5xwNr:
 					      $dbh );
 		}
 
-		push @where_args, sprintf( '%s %s %s', $col, $op, $val );
+		$op = $field -> appropriate_op( $op );
+
+		if( $op )
+		{
+			push @where_args, sprintf( '%s %s %s', $col, $op, $val );
+		}
 	}
 	return @where_args;
 }
