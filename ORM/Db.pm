@@ -15,6 +15,24 @@ sub __set_default_if_not_set
 	}
 }
 
+sub dbh_is_ok
+{
+	my $dbh = shift;
+
+	my $rv = $dbh;
+
+	if( $dbh )
+	{
+
+		unless( $dbh -> ping() )
+		{
+			$rv = undef;
+		}
+	}
+
+	return $rv;
+}
+
 sub init
 {
 	my ( $self, $dbh ) = @_;
