@@ -241,6 +241,7 @@ FXOINoqUOvIG1kAG:
 			$attr -> default( undef );
 			$self -> meta() -> add_attribute( $aname, ( is => 'rw',
 								    isa => $attr -> { 'isa' },
+								    coerce => $attr -> { 'coerce' },
 								    lazy => 1,
 								    metaclass => 'ORM::Meta::Attribute',
 								    description => $newdescr,
