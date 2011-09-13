@@ -259,7 +259,6 @@ sub __lazy_build_value
 	my $rec_field_name = &__get_db_field_name( $attr );
 	my $coerce_from = &__descr_attr( $attr, 'coerce_from' );
 
-	my $r = $self -> _rec();
 	my $t = $self -> _rec() -> { $rec_field_name };
 
 	if( defined $coerce_from )
