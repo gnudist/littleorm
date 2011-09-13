@@ -4,6 +4,7 @@ use ORM::Db::Field;
 package ORM::Model;
 
 use Moose;
+use Moose::Util::TypeConstraints;
 
 has '_rec' => ( is => 'rw', isa => 'HashRef', required => 1, metaclass => 'ORM::Meta::Attribute', description => { ignore => 1 } );
 
@@ -352,7 +353,20 @@ sub __prep_value_for_db
 {
 	my ( $attr, $value ) = @_;
 
+
+	my $isa = $attr -> { 'isa' };
+
+	{
+		my $ftc = find_type_constraint( $isa );
+
+		if( $ftc and $ftc -> has_coercion() )
+		{
+			$value = $ftc -> coerce( $value );
+		}
+	}
+
 	my $rv = $value;
+
 
 	my $coerce_to = &__descr_attr( $attr, 'coerce_to' );
 
