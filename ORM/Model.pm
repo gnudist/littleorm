@@ -104,13 +104,49 @@ sub create
 	my $self = shift;
 	my @args = @_;
 
-	my $sql = $self -> __form_insert_sql( @args );
+	my %args = $self -> __correct_insert_args( @args );
+	my $sql = $self -> __form_insert_sql( %args );
 
-	my $rc = &ORM::Db::doit( $sql, $self -> __get_dbh( @args ) );
-
-	if( $rc == 1 )
+	if( $args{ '_debug' } )
 	{
-		return $self -> get( @_ );
+		return $sql;
+	}
+
+	my $allok = 0;
+
+	if( my $pk = $self -> __find_primary_key() )
+	{
+		my $sth = &ORM::Db::prep( $sql, $self -> __get_dbh( @args ) );
+		my $rc = $sth -> execute();
+
+		if( $rc == 1 )
+		{
+			$allok = 1;
+
+			unless( $args{ $pk -> name() } )
+			{
+				my $field = &__get_db_field_name( $pk );
+				my $data = $sth -> fetchrow_hashref();
+				$args{ $pk -> name() } = $data -> { $field };
+			}
+			
+		}
+
+		$sth -> finish();
+
+	} else
+	{
+		my $rc = &ORM::Db::doit( $sql, $self -> __get_dbh( @args ) );
+
+		if( $rc == 1 )
+		{
+			$allok = 1;
+		}
+	}
+
+	if( $allok )
+	{
+		return $self -> get( %args );
 	}
 
 	assert( 0, sprintf( "%s: %s", $sql, &ORM::Db::errstr( $self -> __get_dbh( @args ) ) ) );
@@ -180,8 +216,14 @@ sub delete
 	my $self = shift;
 
 	my @args = @_;
+	my %args = @args;
 
 	my $sql = $self -> __form_delete_sql( @args );
+
+	if( $args{ '_debug' } )
+	{
+		return $sql;
+	}
 
 	my $rc = &ORM::Db::doit( $sql, $self -> __get_dbh( @args ) );
 
@@ -198,20 +240,26 @@ sub meta_change_attr
 
 	my $arg_obj = $self -> meta() -> find_attribute_by_name( $arg );
 
-	my $d = $arg_obj -> description();
+	my $cloned_arg_obj = $arg_obj -> clone();
+
+	my $d = ( $cloned_arg_obj -> description() or sub {} -> () );
+
+	my %new_description = %{ $d };
 
 	while( my ( $k, $v ) = each %attrs )
 	{
 		if( $v )
 		{
-			$d -> { $k } = $v;
+			$new_description{ $k } = $v;
 		} else
 		{
-			delete $d -> { $k };
+			delete $new_description{ $k };
 		}
 	}
 
-	$arg_obj -> description( $d );
+	$cloned_arg_obj -> description( \%new_description );
+
+	$self -> meta() -> add_attribute( $cloned_arg_obj );
 }
 
 ################################################################################
@@ -289,14 +337,11 @@ sub __load_module
 
 }
 
-sub __form_insert_sql
+sub __correct_insert_args
 {
 	my $self = shift;
 
 	my %args = @_;
-
-	my @fields = ();
-	my @values = ();
 
 	my $dbh = $self -> __get_dbh( %args );
 
@@ -313,6 +358,20 @@ sub __form_insert_sql
 			}
 		}
 	}
+
+	return %args;
+}
+
+sub __form_insert_sql
+{
+	my $self = shift;
+
+	my %args = @_;
+
+	my @fields = ();
+	my @values = ();
+
+	my $dbh = $self -> __get_dbh( %args );
 
 XmXRGqnrCTqWH52Z:
 	while( my ( $arg, $val ) = each %args )
@@ -343,6 +402,11 @@ XmXRGqnrCTqWH52Z:
 			   $self -> _db_table(),
 			   join( ',', @fields ),
 			   join( ',', map { &ORM::Db::dbq( $_, $dbh ) } @values ) );
+
+	if( my $pk = $self -> __find_primary_key() )
+	{
+		$sql .= " RETURNING " . &__get_db_field_name( $pk );
+	}
 
 	return $sql;
 }
