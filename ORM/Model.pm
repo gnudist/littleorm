@@ -211,6 +211,46 @@ ETxc0WxZs0boLUm1:
 	}
 }
 
+sub copy
+{
+	my $self = shift;
+
+	my %args = @_;
+
+	assert( my $class = ref( $self ), 'this is object method' );
+
+	my %copied_args = %args;
+
+kdCcjt3iG8jOfthJ:
+	foreach my $attr ( $self -> meta() -> get_all_attributes() )
+	{
+		my $aname = $attr -> name();
+
+		if( $aname =~ /^_/ )
+		{
+			# internal attrs start with underscore, skip them
+			next kdCcjt3iG8jOfthJ;
+		}
+
+		if( &__descr_attr( $attr, 'ignore' ) 
+		    or 
+		    &__descr_attr( $attr, 'primary_key' )
+		    or
+		    &__descr_attr( $attr, 'ignore_write' ) )
+		{
+			next kdCcjt3iG8jOfthJ;
+		}
+
+		unless( $copied_args{ $aname } )
+		{
+			$copied_args{ $aname } = $self -> $aname();
+		}
+
+	}
+
+	return $class -> create( %copied_args );
+}
+
 sub delete
 {
 	my $self = shift;
