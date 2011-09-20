@@ -356,10 +356,16 @@ sub __lazy_build_value
 	} elsif( my $foreign_key = &__descr_attr( $attr, 'foreign_key' ) )
 	{
 		&__load_module( $foreign_key );
+
+		my $foreign_key_attr_name = &__descr_attr( $attr, 'foreign_key_attr_name' );
+
+		unless( $foreign_key_attr_name )
+		{
+			my $his_pk = $foreign_key -> __find_primary_key();
+			$foreign_key_attr_name = $his_pk -> name();
+		}
 		
-		my $his_pk = $foreign_key -> __find_primary_key();
-		
-		$t = $foreign_key -> get( $his_pk -> name() => $t,
+		$t = $foreign_key -> get( $foreign_key_attr_name => $t,
 					  _dbh => $self -> __get_dbh() );
 	}
 	
@@ -480,9 +486,15 @@ sub __prep_value_for_db
 
 	if( ref( $value ) and &__descr_attr( $attr, 'foreign_key' ) )
 	{
-		my $his_pk = $value -> __find_primary_key();
-		my $his_pk_name = $his_pk -> name();
-		$rv = $value -> $his_pk_name();
+		my $foreign_key_attr_name = &__descr_attr( $attr, 'foreign_key_attr_name' );
+
+		unless( $foreign_key_attr_name )
+		{
+			my $his_pk = $value -> __find_primary_key();
+			$foreign_key_attr_name = $his_pk -> name();
+		}
+
+		$rv = $value -> $foreign_key_attr_name();
 	}
 
 	return $rv;
