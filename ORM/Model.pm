@@ -510,10 +510,17 @@ sub __form_delete_sql
 
 	if( ref( $self ) )
 	{
-		foreach my $attr ( $self -> meta() -> get_all_attributes() )
+		if( my $pk = $self -> __find_primary_key() )
 		{
-			my $aname = $attr -> name();
-			$args{ $aname } = $self -> $aname();
+			my $pkname = $pk -> name();
+			$args{ $pkname } = $self -> $pkname();
+		} else
+		{
+			foreach my $attr ( $self -> meta() -> get_all_attributes() )
+			{
+				my $aname = $attr -> name();
+				$args{ $aname } = $self -> $aname();
+			}
 		}
 	}
 
@@ -641,7 +648,7 @@ sub __form_where
 
 	my @args = @_;
 
-	my @where_args = ( '1=1' );
+	my @where_args = ();
 
 	my $dbh = $self -> __get_dbh( @args );
 
@@ -718,6 +725,12 @@ fhFwaEknUtY5xwNr:
 			push @where_args, sprintf( '%s %s %s', $col, $op, $val );
 		}
 	}
+
+	unless( @where_args )
+	{
+		@where_args = ( '1=1' );
+	}
+
 	return @where_args;
 }
 
