@@ -356,10 +356,18 @@ FXOINoqUOvIG1kAG:
 			my $newdescr = ( &__descr_or_undef( $attr ) or {} );
 			$newdescr -> { $orm_initialized_attr_desc_option } = 1;
 
+			my $predicate = $attr -> predicate();
+			my $trigger = $attr -> trigger();
+
 			$attr -> default( undef );
 			$self -> meta() -> add_attribute( $aname, ( is => 'rw',
 								    isa => $attr -> { 'isa' },
 								    coerce => $attr -> { 'coerce' },
+
+
+								    ( defined $predicate ? ( predicate => $predicate ) : () ),
+								    ( defined $trigger ? ( trigger => $trigger ) : () ),
+
 								    lazy => 1,
 								    metaclass => 'ORM::Meta::Attribute',
 								    description => $newdescr,
