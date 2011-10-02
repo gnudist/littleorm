@@ -10,13 +10,35 @@ has '_rec' => ( is => 'rw', isa => 'HashRef', required => 1, metaclass => 'ORM::
 
 use Carp::Assert;
 
-sub get
+sub clause
 {
 	my $self = shift;
 
 	my @args = @_;
 
+	my $classname = ( ref( $self ) or $self );
+
+	return ORM::Clause -> new( model => $classname,
+				   @args );
+
+}
+
+
+sub get
+{
+	my $self = shift;
+
+	my @args = @_;
+	my %args = @args;
+
 	my $sql = $self -> __form_get_sql( @args, '_limit' => 1 );
+
+	if( $args{ '_debug' } )
+	{
+		return $sql;
+	}
+
+
 	my $rec = &ORM::Db::getrow( $sql, $self -> __get_dbh( @args ) );
 
 	my $rv = undef;
@@ -66,10 +88,17 @@ sub get_many
 {
 	my $self = shift;
 	my @args = @_;
-
+	my %args = @args;
 	my @outcome = ();
 
 	my $sql = $self -> __form_get_sql( @args );
+
+	if( $args{ '_debug' } )
+	{
+		return $sql;
+	}
+
+
 	my $sth = &ORM::Db::prep( $sql, $self -> __get_dbh( @args ) );
 	$sth -> execute();
 
@@ -282,7 +311,7 @@ sub meta_change_attr
 
 	my $cloned_arg_obj = $arg_obj -> clone();
 
-	my $d = ( $cloned_arg_obj -> description() or {} );
+	my $d = ( $cloned_arg_obj -> description() or sub {} -> () );
 
 	my %new_description = %{ $d };
 
@@ -656,11 +685,22 @@ sub __form_where
 fhFwaEknUtY5xwNr:
 	while( my $attr = shift @args )
 	{
+
 		my $val = shift @args;
 
 		if( $attr eq '_where' )
 		{
 			push @where_args, $val;
+
+		} elsif( $attr eq '_clause' )
+		{
+			if( ref( $val ) eq 'ARRAY' )
+			{
+				$val = $self -> clause( @{ $val } );
+			}
+
+			assert( ref( $val ) eq 'ORM::Clause' );
+			push @where_args, $val -> sql();
 
 		}
 
