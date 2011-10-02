@@ -282,7 +282,7 @@ sub meta_change_attr
 
 	my $cloned_arg_obj = $arg_obj -> clone();
 
-	my $d = ( $cloned_arg_obj -> description() or sub {} -> () );
+	my $d = ( $cloned_arg_obj -> description() or {} );
 
 	my %new_description = %{ $d };
 
