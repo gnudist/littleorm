@@ -42,8 +42,8 @@ my @many = Macros -> get_many( address => { 'LIKE', 'PATTERN%' },
 @many = ExampleORMClass -> get_many( address => { 'LIKE', 'PATTERN%' },
 				     id      => { '>=', 1000 },
 
-				     _sortby => { id      => 'ASC',
-						  created => 'DESC' },
+				     _sortby => [ id      => 'ASC',
+						  created => 'DESC' ],
 
 				     _limit => 100,
 				     _offset => 200 );
