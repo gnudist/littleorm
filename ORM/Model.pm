@@ -658,6 +658,24 @@ sub __form_additional_sql
 				push @pairs, sprintf( '%s %s', $dbf, $sort_order );
 			}
 			$sql .= ' ORDER BY ' . join( ',', @pairs );
+		} elsif(  ref( $t ) eq 'ARRAY' )
+		{ 
+			
+			my @pairs = ();
+
+			my @arr = @{ $t };
+
+			while( @arr )
+			{
+				my $k = shift @arr;
+				my $sort_order = shift @arr;
+
+				my $dbf = &__get_db_field_name( $self -> meta() -> find_attribute_by_name( $k ) );
+				push @pairs, sprintf( '%s %s', $dbf, $sort_order );
+			}
+			$sql .= ' ORDER BY ' . join( ',', @pairs );
+
+
 		} else
 		{
 			# then its attr name and unspecified order
