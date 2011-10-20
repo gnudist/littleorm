@@ -56,10 +56,13 @@ sub dbq
 {
 	my ( $v, $dbh ) = @_;
 
+
 	unless( $dbh )
 	{
 		$dbh = $cached_dbh;
 	}
+
+	assert( $dbh );
 
 	return $dbh -> quote( $v );
 
