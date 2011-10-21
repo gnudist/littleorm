@@ -77,6 +77,8 @@ sub getrow
 		$dbh = $cached_dbh;
 	}
 
+	assert( $dbh );
+
 	return $dbh -> selectrow_hashref( $sql );
 
 }
@@ -89,6 +91,8 @@ sub prep
 	{
 		$dbh = $cached_dbh;
 	}
+
+	assert( $dbh );
 
 	return $dbh -> prepare( $sql );
 	
@@ -103,6 +107,8 @@ sub doit
 		$dbh = $cached_dbh;
 	}
 
+	assert( $dbh );
+
 	return $dbh -> do( $sql );
 }
 
@@ -114,7 +120,8 @@ sub errstr
 	{
 		$dbh = $cached_dbh;
 	}
-
+	
+	assert( $dbh );
 
 	return $dbh -> errstr();
 }
