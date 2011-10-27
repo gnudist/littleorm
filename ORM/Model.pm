@@ -654,7 +654,11 @@ sub __form_additional_sql
 
 			while( my ( $k, $sort_order ) = each %{ $t } )
 			{
-				my $dbf = &__get_db_field_name( $self -> meta() -> find_attribute_by_name( $k ) );
+				my $dbf = $k;
+				if( my $t = $self -> meta() -> find_attribute_by_name( $k ) )
+				{
+					$dbf = &__get_db_field_name( $t );
+				}
 				push @pairs, sprintf( '%s %s', $dbf, $sort_order );
 			}
 			$sql .= ' ORDER BY ' . join( ',', @pairs );
@@ -670,8 +674,15 @@ sub __form_additional_sql
 				my $k = shift @arr;
 				my $sort_order = shift @arr;
 
-				my $dbf = &__get_db_field_name( $self -> meta() -> find_attribute_by_name( $k ) );
-				push @pairs, sprintf( '%s %s', $dbf, $sort_order );
+				my $dbf = $k;
+				if( my $t = $self -> meta() -> find_attribute_by_name( $k ) )
+				{
+					$dbf = &__get_db_field_name( $t );
+				}
+
+
+
+				push @pairs, sprintf( '%s %s', ( $dbf or $k ), $sort_order );
 			}
 			$sql .= ' ORDER BY ' . join( ',', @pairs );
 
@@ -679,7 +690,15 @@ sub __form_additional_sql
 		} else
 		{
 			# then its attr name and unspecified order
-			my $dbf = &__get_db_field_name( $self -> meta() -> find_attribute_by_name( $t ) );
+
+
+			my $dbf = $t;
+
+			if( my $t1 = $self -> meta() -> find_attribute_by_name( $t ) )
+			{
+				$dbf = &__get_db_field_name( $t1 );
+			}
+
 			$sql .= ' ORDER BY ' . $dbf;
 		}
 	}
@@ -758,10 +777,20 @@ fhFwaEknUtY5xwNr:
 			} else
 			{
 				my %t = %{ $val };
-				( $op, $val ) = each %t;
+				my $rval = undef;
+				( $op, $rval ) = each %t;
 
-				$val = &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $val ),
-						      $dbh );
+				if( ref( $rval ) eq 'ARRAY' )
+				{
+					
+					$val = sprintf( '(%s)', join( ',', map { &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $_ ),
+												$dbh ) } @{ $rval } ) );
+
+				} else
+				{
+					$val = &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $rval ),
+							      $dbh );
+				}
 			}
 
 		} elsif( ref( $val ) eq 'ARRAY' )
