@@ -156,6 +156,7 @@ sub create
 			{
 				my $field = &__get_db_field_name( $pk );
 				my $data = $sth -> fetchrow_hashref();
+				%args = ();
 				$args{ $pk -> name() } = $data -> { $field };
 			}
 			
@@ -762,6 +763,8 @@ fhFwaEknUtY5xwNr:
 			next fhFwaEknUtY5xwNr;
 		}
 
+		$val = &__prep_value_for_db( $class_attr, $val );
+
 		my $class_attr_isa = $class_attr -> { 'isa' };
 
 		my $col = &__get_db_field_name( $class_attr );
@@ -809,7 +812,7 @@ fhFwaEknUtY5xwNr:
 
 		} else
 		{
-			$val = &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $val ),
+			$val = &ORM::Db::dbq( $val,
 					      $dbh );
 		}
 
