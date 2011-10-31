@@ -218,14 +218,37 @@ ETxc0WxZs0boLUm1:
 
 	}
 
-	my $pkname = $pkattr -> name();
+	#
 
-	my $sql = sprintf( 'UPDATE %s SET %s WHERE %s=%s',
+
+	my $where = '1=2';
+
+	{
+		my %where_args = ();
+
+		foreach my $pkattr ( $self -> __find_primary_keys() )
+		{
+			my $pkname = $pkattr -> name();
+
+			$where_args{ $pkname } = $self -> $pkname();
+		}
+		my @where = $self -> __form_where( %where_args );
+
+		assert( $where = join( ' AND ', @where ) );
+	}
+
+
+	# my $sql = sprintf( 'UPDATE %s SET %s WHERE %s=%s',
+	# 		   $self -> _db_table(),
+	# 		   join( ',', @upadte_pairs ),
+	# 		   &__get_db_field_name( $pkattr ),
+	# 		   &ORM::Db::dbq( &__prep_value_for_db( $pkattr, $self -> $pkname() ),
+	# 				  $self -> __get_dbh() ) );
+
+	my $sql = sprintf( 'UPDATE %s SET %s WHERE %s',
 			   $self -> _db_table(),
 			   join( ',', @upadte_pairs ),
-			   &__get_db_field_name( $pkattr ),
-			   &ORM::Db::dbq( &__prep_value_for_db( $pkattr, $self -> $pkname() ),
-					  $self -> __get_dbh() ) );
+			   $where );
 
 
 	if( $debug )
@@ -764,8 +787,6 @@ fhFwaEknUtY5xwNr:
 			next fhFwaEknUtY5xwNr;
 		}
 
-		$val = &__prep_value_for_db( $class_attr, $val );
-
 		my $class_attr_isa = $class_attr -> { 'isa' };
 
 		my $col = &__get_db_field_name( $class_attr );
@@ -813,7 +834,7 @@ fhFwaEknUtY5xwNr:
 
 		} else
 		{
-			$val = &ORM::Db::dbq( $val,
+			$val = &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $val ),
 					      $dbh );
 		}
 
@@ -837,14 +858,27 @@ sub __find_primary_key
 {
 	my $self = shift;
 
+	my @pk = $self -> __find_primary_keys();
+
+	return $pk[ 0 ];
+}
+
+
+sub __find_primary_keys
+{
+	my $self = shift;
+
+	my @rv = ();
+
 	foreach my $attr ( $self -> meta() -> get_all_attributes() )
 	{
 
 		if( my $pk = &__descr_attr( $attr, 'primary_key' ) )
 		{
-			return $attr;
+			push @rv, $attr;
 		}
 	}
+	return @rv;
 }
 
 sub __descr_or_undef
