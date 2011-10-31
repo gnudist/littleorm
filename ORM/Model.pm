@@ -572,10 +572,16 @@ sub __form_delete_sql
 
 	if( ref( $self ) )
 	{
-		if( my $pk = $self -> __find_primary_key() )
+		if( my @pk = $self -> __find_primary_keys() )
 		{
-			my $pkname = $pk -> name();
-			$args{ $pkname } = $self -> $pkname();
+			foreach my $pk ( @pk )
+			{
+
+				my $pkname = $pk -> name();
+				$args{ $pkname } = $self -> $pkname();
+			}
+
+
 		} else
 		{
 			foreach my $attr ( $self -> meta() -> get_all_attributes() )
