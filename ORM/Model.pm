@@ -9,6 +9,7 @@ use Moose::Util::TypeConstraints;
 has '_rec' => ( is => 'rw', isa => 'HashRef', required => 1, metaclass => 'ORM::Meta::Attribute', description => { ignore => 1 } );
 
 use Carp::Assert;
+use Scalar::Util 'blessed';
 
 sub clause
 {
@@ -522,7 +523,7 @@ sub __prep_value_for_db
 		$rv = $coerce_to -> ( $value );
 	}
 
-	if( ref( $value ) and &__descr_attr( $attr, 'foreign_key' ) )
+	if( ref( $value ) and blessed( $value ) and &__descr_attr( $attr, 'foreign_key' ) )
 	{
 		my $foreign_key_attr_name = &__descr_attr( $attr, 'foreign_key_attr_name' );
 
