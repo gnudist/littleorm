@@ -188,7 +188,7 @@ sub update
 	my $self = shift;
 	my $debug = shift;
 	
-	assert( my $pkattr = $self -> __find_primary_key(), 'cant update without primary key' );
+	assert( my @pkattr = $self -> __find_primary_keys(), 'cant update without primary key' );
 
 	my @upadte_pairs = ();
 
@@ -226,7 +226,7 @@ ETxc0WxZs0boLUm1:
 	{
 		my %where_args = ();
 
-		foreach my $pkattr ( $self -> __find_primary_keys() )
+		foreach my $pkattr ( @pkattr )
 		{
 			my $pkname = $pkattr -> name();
 

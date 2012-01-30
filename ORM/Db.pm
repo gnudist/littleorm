@@ -4,17 +4,6 @@ my $cached_dbh = undef;
 
 use Carp::Assert;
 
-sub __set_default_if_not_set
-{
-	my ( $self, $dbh ) = @_;
-
-	unless( my $t = $self -> get_dbh() )
-	{
-		# small racecond :)
-		$self -> init( $dbh );
-	}
-}
-
 sub dbh_is_ok
 {
 	my $dbh = shift;
@@ -31,6 +20,17 @@ sub dbh_is_ok
 	}
 
 	return $rv;
+}
+
+sub __set_default_if_not_set
+{
+	my ( $self, $dbh ) = @_;
+
+	unless( &dbh_is_ok( $self -> get_dbh() ) )
+	{
+		# small racecond :)
+		$self -> init( $dbh );
+	}
 }
 
 sub init
@@ -62,7 +62,7 @@ sub dbq
 		$dbh = $cached_dbh;
 	}
 
-	assert( $dbh );
+	assert( &dbh_is_ok( $dbh ) );
 
 	return $dbh -> quote( $v );
 
@@ -77,7 +77,7 @@ sub getrow
 		$dbh = $cached_dbh;
 	}
 
-	assert( $dbh );
+	assert( &dbh_is_ok( $dbh ) );
 
 	return $dbh -> selectrow_hashref( $sql );
 
@@ -92,7 +92,7 @@ sub prep
 		$dbh = $cached_dbh;
 	}
 
-	assert( $dbh );
+	assert( &dbh_is_ok( $dbh ) );
 
 	return $dbh -> prepare( $sql );
 	
@@ -107,7 +107,8 @@ sub doit
 		$dbh = $cached_dbh;
 	}
 
-	assert( $dbh );
+	assert( &dbh_is_ok( $dbh ) );
+
 
 	return $dbh -> do( $sql );
 }
@@ -120,9 +121,8 @@ sub errstr
 	{
 		$dbh = $cached_dbh;
 	}
+	assert( &dbh_is_ok( $dbh ) );
 	
-	assert( $dbh );
-
 	return $dbh -> errstr();
 }
 
