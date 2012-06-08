@@ -378,11 +378,20 @@ FXOINoqUOvIG1kAG:
 		}
 
 		{
+
 			my $newdescr = ( &__descr_or_undef( $attr ) or {} );
 			$newdescr -> { $orm_initialized_attr_desc_option } = 1;
 
 			my $predicate = $attr -> predicate();
-			my $trigger = $attr -> trigger();
+			my $trigger   = $attr -> trigger();
+			my $clearer   = $attr -> clearer(); # change made by Kain
+							    # I really need this sometimes in case of processing thousands of objects
+							    # and manual cleanup so I'm avoiding cache-related memleaks
+							    # so if you want to give me whole server RAM - wipe it out :)
+
+			my $handles   = ( $attr -> has_handles() ? $attr -> handles() : undef ); # also made by kain
+
+			my $orig_method = $self -> meta() -> get_method( $aname );
 
 			$attr -> default( undef );
 			$self -> meta() -> add_attribute( $aname, ( is => 'rw',
@@ -391,14 +400,29 @@ FXOINoqUOvIG1kAG:
 
 
 								    ( defined $predicate ? ( predicate => $predicate ) : () ),
-								    ( defined $trigger ? ( trigger => $trigger ) : () ),
+								    ( defined $trigger   ? ( trigger => $trigger )     : () ),
+								    ( defined $clearer   ? ( clearer => $clearer )     : () ),
+								    ( defined $handles   ? ( handles => $handles )     : () ),
 
 								    lazy => 1,
 								    metaclass => 'ORM::Meta::Attribute',
 								    description => $newdescr,
 								    default => sub { $_[ 0 ] -> __lazy_build_value( $attr ) } ) );
+
+			if( $orig_method and $orig_method -> isa( 'Class::MOP::Method::Wrapped' ) )
+			{
+				my $new_method = $self -> meta() -> get_method( $aname );
+				my $new_meta_method = Class::MOP::Method::Wrapped -> wrap( $new_method );
+				
+				map { $new_meta_method -> add_around_modifier( $_ ) } $orig_method -> around_modifiers();
+				map { $new_meta_method -> add_before_modifier( $_ ) } $orig_method -> before_modifiers();
+				map { $new_meta_method -> add_after_modifier( $_ )  } $orig_method -> after_modifiers();
+				
+				$self -> meta() -> add_method( $aname, $new_meta_method );
+			}
 		}
 	}
+
 }
 
 sub __lazy_build_value
