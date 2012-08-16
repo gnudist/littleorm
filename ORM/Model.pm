@@ -17,11 +17,74 @@ sub clause
 
 	my @args = @_;
 
-	my $classname = ( ref( $self ) or $self );
+	my $class = ( ref( $self ) or $self );
 
-	return ORM::Clause -> new( model => $classname,
+	return ORM::Clause -> new( model => $class,
 				   @args );
 
+}
+
+sub reload
+{
+	my $self = shift;
+
+	if( my $pk = $self -> __find_primary_key() )
+	{
+		my $pkname = $pk -> name();
+		my $pkval = $self -> $pkname();
+
+		foreach my $attr ( $self -> meta() -> get_all_attributes() )
+		{
+			if( $attr -> has_clearer() )
+			{
+
+# http://search.cpan.org/~doy/Moose-2.0603/lib/Class/MOP/Attribute.pm
+# $attr->clearer
+#     The accessor, reader, writer, predicate, and clearer methods all
+#     return exactly what was passed to the constructor, so it can be
+#     either a string containing a method name, or a hash reference.
+
+				# -- why does it have to be so complex?
+				
+				my $clearer = $attr -> clearer();
+
+				# ok, as doc above says:
+				if( ref( $clearer ) )
+				{
+					my $code = ${ [ values %{ $clearer } ] }[ 0 ];
+					$code -> ( $self );
+
+				} else
+				{
+					$self -> $clearer();
+				}
+			
+			} else
+			{
+				$attr -> clear_value( $self );
+			}
+		}
+
+		my $sql = $self -> __form_get_sql( $pkname => $pkval,
+						   _limit => 1 );
+
+		my $rec = &ORM::Db::getrow( $sql, $self -> __get_dbh() );
+
+		$self -> _rec( $rec );
+
+	} else
+	{
+		assert( 0, 'reload in only supported for models with PK' );
+	}
+}
+
+sub clone
+{
+	my $self = shift;
+
+	my $class = ref( $self );
+
+	return $class -> new( _rec => $self -> _rec() );
 }
 
 
@@ -32,13 +95,12 @@ sub get
 	my @args = @_;
 	my %args = @args;
 
-	my $sql = $self -> __form_get_sql( @args, '_limit' => 1 );
+	my $sql = $self -> __form_get_sql( @args, _limit => 1 );
 
 	if( $args{ '_debug' } )
 	{
 		return $sql;
 	}
-
 
 	my $rec = &ORM::Db::getrow( $sql, $self -> __get_dbh( @args ) );
 
@@ -422,7 +484,6 @@ FXOINoqUOvIG1kAG:
 			}
 		}
 	}
-
 }
 
 sub __lazy_build_value
@@ -984,6 +1045,8 @@ sub __get_dbh
 			$self -> __set_class_dbh( $dbh );
 		}
 	}
+
+	assert( &ORM::Db::dbh_is_ok( $dbh ), 'this method is supposed to return valid dbh' );
 
 	return $dbh;
 }
