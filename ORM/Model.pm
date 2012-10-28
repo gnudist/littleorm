@@ -357,11 +357,10 @@ kdCcjt3iG8jOfthJ:
 			next kdCcjt3iG8jOfthJ;
 		}
 
-		unless( $copied_args{ $aname } )
+		unless( exists $copied_args{ $aname } )
 		{
 			$copied_args{ $aname } = $self -> $aname();
 		}
-
 	}
 
 	return $class -> create( %copied_args );
@@ -603,7 +602,6 @@ XmXRGqnrCTqWH52Z:
 
 	return $sql;
 }
-
 
 sub __prep_value_for_db
 {
@@ -978,10 +976,11 @@ sub __descr_or_undef
 
 	my $rv = undef;
 
-	eval {
+	if( $attr -> can( 'description' ) )
+	{
 		$rv = $attr -> description();
-	};
-
+	}
+	
 	return $rv;
 }
 
