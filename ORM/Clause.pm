@@ -1,5 +1,24 @@
 use strict;
 
+package ORM::Model;
+
+# Extend ORM::Model capabilities with clause support:
+
+sub clause
+{
+	my $self = shift;
+
+	my @args = @_;
+
+	my $class = ( ref( $self ) or $self );
+
+	return ORM::Clause -> new( model => $class,
+				   @args );
+
+}
+
+
+
 package ORM::Clause;
 
 use Moose;

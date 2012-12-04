@@ -11,32 +11,18 @@ has '_rec' => ( is => 'rw', isa => 'HashRef', required => 1, metaclass => 'ORM::
 use Carp::Assert;
 use Scalar::Util 'blessed';
 
-sub clause
+# Let it be separate method, m'kay?
+sub clear
 {
 	my $self = shift;
 
-	my @args = @_;
-
-	my $class = ( ref( $self ) or $self );
-
-	return ORM::Clause -> new( model => $class,
-				   @args );
-
-}
-
-sub reload
-{
-	my $self = shift;
-
-	if( my $pk = $self -> __find_primary_key() )
+	foreach my $attr ( $self -> meta() -> get_all_attributes() )
 	{
-		my $pkname = $pk -> name();
-		my $pkval = $self -> $pkname();
+		next if &__descr_attr( $attr, 'do_not_clear_on_reload' ); # well, kinda crutch...
+									  #		- Kain
 
-		foreach my $attr ( $self -> meta() -> get_all_attributes() )
+		if( $attr -> has_clearer() )
 		{
-			if( $attr -> has_clearer() )
-			{
 
 # http://search.cpan.org/~doy/Moose-2.0603/lib/Class/MOP/Attribute.pm
 # $attr->clearer
@@ -44,28 +30,48 @@ sub reload
 #     return exactly what was passed to the constructor, so it can be
 #     either a string containing a method name, or a hash reference.
 
-				# -- why does it have to be so complex?
-				
-				my $clearer = $attr -> clearer();
-
-				# ok, as doc above says:
-				if( ref( $clearer ) )
-				{
-					my $code = ${ [ values %{ $clearer } ] }[ 0 ];
-					$code -> ( $self );
-
-				} else
-				{
-					$self -> $clearer();
-				}
+			# -- why does it have to be so complex?
 			
+			my $clearer = $attr -> clearer();
+
+			# ok, as doc above says:
+			if( ref( $clearer ) )
+			{
+				my $code = ${ [ values %{ $clearer } ] }[ 0 ];
+				$code -> ( $self );
+
 			} else
 			{
-				$attr -> clear_value( $self );
+				$self -> $clearer();
 			}
+			
+		} else
+		{
+			$attr -> clear_value( $self );
+		}
+	}
+
+	return 1;
+}
+
+sub reload
+{
+	my $self = shift;
+
+	
+	if( my @pk = $self -> __find_primary_keys() )
+	{
+		my %get_args = ();
+
+		foreach my $pk ( @pk )
+		{
+			my $pkname = $pk -> name();
+			$get_args{ $pkname } = $self -> $pkname();
 		}
 
-		my $sql = $self -> __form_get_sql( $pkname => $pkval,
+		$self -> clear();
+
+		my $sql = $self -> __form_get_sql( %get_args,
 						   _limit => 1 );
 
 		my $rec = &ORM::Db::getrow( $sql, $self -> __get_dbh() );
@@ -154,7 +160,9 @@ sub get_many
 	my %args = @args;
 	my @outcome = ();
 
+
 	my $sql = $self -> __form_get_sql( @args );
+
 
 	if( $args{ '_debug' } )
 	{
@@ -180,9 +188,15 @@ sub count
 {
 	my $self = shift;
 	my @args = @_;
+	my %args = @args;
 
 	my $outcome = 0;
 	my $sql = $self -> __form_count_sql( @args );
+
+	if( $args{ '_debug' } )
+	{
+		return $sql;
+	}
 
 	my $r = &ORM::Db::getrow( $sql, $self -> __get_dbh( @args ) );
 
@@ -206,7 +220,7 @@ sub create
 
 	my $allok = 0;
 
-	if( my $pk = $self -> __find_primary_key() )
+	if( my @pk = $self -> __find_primary_keys() )
 	{
 		my $sth = &ORM::Db::prep( $sql, $self -> __get_dbh( @args ) );
 		my $rc = $sth -> execute();
@@ -215,14 +229,16 @@ sub create
 		{
 			$allok = 1;
 
-			unless( $args{ $pk -> name() } )
+			foreach my $pk ( @pk )
 			{
-				my $field = &__get_db_field_name( $pk );
-				my $data = $sth -> fetchrow_hashref();
-				%args = ();
-				$args{ $pk -> name() } = $data -> { $field };
+				unless( $args{ $pk -> name() } )
+				{
+					my $field = &__get_db_field_name( $pk );
+					my $data = $sth -> fetchrow_hashref();
+					%args = ();
+					$args{ $pk -> name() } = $data -> { $field };
+				}
 			}
-			
 		}
 
 		$sth -> finish();
@@ -595,9 +611,9 @@ XmXRGqnrCTqWH52Z:
 			   join( ',', @fields ),
 			   join( ',', map { &ORM::Db::dbq( $_, $dbh ) } @values ) );
 
-	if( my $pk = $self -> __find_primary_key() )
+	if( my @pk = $self -> __find_primary_keys() )
 	{
-		$sql .= " RETURNING " . &__get_db_field_name( $pk );
+		$sql .= " RETURNING " . join( ',', map { &__get_db_field_name( $_ ) } @pk );
 	}
 
 	return $sql;
@@ -722,9 +738,17 @@ sub __form_get_sql
 
 	my @fields_names = $self -> __collect_field_names();
 
-	my $sql = sprintf( "SELECT %s FROM %s WHERE %s",
-			   join( ',', @fields_names ),
-			   $self -> _db_table(), 
+	my @tables_to_select_from = ( $self -> _db_table() );
+
+	if( my $t = $args{ '_tables_to_select_from' } )
+	{
+		@tables_to_select_from = @{ $t };
+	}
+
+	my $sql = sprintf( "SELECT %s %s FROM %s WHERE %s",
+			   ( $args{ '_distinct' } ? 'DISTINCT' : '' ),
+			   join( ',', map { $self -> _db_table() . "." . $_ } @fields_names ),
+			   join( ',', @tables_to_select_from ), 
 			   join( ' ' . ( $args{ '_logic' } or 'AND' ) . ' ', @where_args ) );
 
 	$sql .= $self -> __form_additional_sql( @args );
@@ -742,7 +766,16 @@ sub __form_count_sql
 
 	my @where_args = $self -> __form_where( @args );
 
-	my $sql = sprintf( "SELECT count(1) FROM %s WHERE %s", $self -> _db_table(), join( ' ' . ( $args{ '_logic' } or 'AND' ) . ' ', @where_args ) );
+	my @tables_to_select_from = ( $self -> _db_table() );
+
+	if( my $t = $args{ '_tables_to_select_from' } )
+	{
+		@tables_to_select_from = @{ $t };
+	}
+
+	my $sql = sprintf( "SELECT count(*) FROM %s WHERE %s", 
+			   join( ',', @tables_to_select_from ), 
+			   join( ' ' . ( $args{ '_logic' } or 'AND' ) . ' ', @where_args ) );
 
 	return $sql;
 }
@@ -931,7 +964,7 @@ fhFwaEknUtY5xwNr:
 
 		if( $op )
 		{
-			push @where_args, sprintf( '%s %s %s', $col, $op, $val );
+			push @where_args, sprintf( '%s.%s %s %s', $self -> _db_table(), $col, $op, $val );
 		}
 	}
 
