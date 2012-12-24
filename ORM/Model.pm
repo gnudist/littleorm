@@ -745,8 +745,21 @@ sub __form_get_sql
 		@tables_to_select_from = @{ $t };
 	}
 
+	my $distinct_select = '';
+
+	if( $args{ '_distinct' } )
+	{
+		$distinct_select = 'DISTINCT';
+
+		if( my @pk = $self -> __find_primary_keys() )
+		{
+			my @fields = map { sprintf( "%s.%s", $self -> _db_table(), &__get_db_field_name( $_ ) ) } @pk;
+			$distinct_select .= sprintf( " ON ( %s ) ", join( ',', @fields ) );
+		}
+	}
+
 	my $sql = sprintf( "SELECT %s %s FROM %s WHERE %s",
-			   ( $args{ '_distinct' } ? 'DISTINCT' : '' ),
+			   $distinct_select,
 			   join( ',', map { $self -> _db_table() . "." . $_ } @fields_names ),
 			   join( ',', @tables_to_select_from ), 
 			   join( ' ' . ( $args{ '_logic' } or 'AND' ) . ' ', @where_args ) );
@@ -754,7 +767,6 @@ sub __form_get_sql
 	$sql .= $self -> __form_additional_sql( @args );
 
 	return $sql;
-
 }
 
 sub __form_count_sql

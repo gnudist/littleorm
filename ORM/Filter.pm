@@ -61,6 +61,7 @@ has 'model' => ( is => 'rw', isa => 'Str', required => 1 );
 has 'clauses' => ( is => 'rw', isa => 'ArrayRef[ORM::Clause]', default => sub { [] } );
 
 use Carp::Assert 'assert';
+use List::MoreUtils 'uniq';
 
 sub push_clause
 {
@@ -92,7 +93,11 @@ sub translate_into_sql_clauses
 			my $next_clause = $self -> clauses() -> [ $i + 1 ];
 
 			assert( my $connecting_sql = $self -> construct_connecting_sql_between( $clause -> model(),
-												$next_clause -> model() ), 'Could not connect two models (do they have FK between them?)' );
+												$next_clause -> model() ),
+				sprintf( 'Could not connect %s to %s (do they have FK between them?)',
+					 $clause -> model(),
+					 $next_clause -> model() ) );
+
 			push @all_clauses_together, $connecting_sql;
 
 		}
@@ -149,7 +154,7 @@ sub call_orm_method
 	my @args = @_;
 
 	return $self -> model() -> $method( @args,
-					    _tables_to_select_from => [ map { $_ -> _db_table() } $self -> all_models_used_in_filter() ],
+					    _tables_to_select_from => [ uniq map { $_ -> _db_table() } $self -> all_models_used_in_filter() ],
 					    _where => join( ' AND ', $self -> translate_into_sql_clauses() ) );
 }
 
