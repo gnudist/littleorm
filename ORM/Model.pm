@@ -753,14 +753,19 @@ sub __form_get_sql
 
 		if( my @pk = $self -> __find_primary_keys() )
 		{
-			my @fields = map { sprintf( "%s.%s", $self -> _db_table(), &__get_db_field_name( $_ ) ) } @pk;
+			my @fields = map { sprintf( "%s.%s",
+						    ( $args{ '_table_alias' } or $self -> _db_table() ),
+						    &__get_db_field_name( $_ ) ) } @pk;
+
 			$distinct_select .= sprintf( " ON ( %s ) ", join( ',', @fields ) );
 		}
 	}
 
 	my $sql = sprintf( "SELECT %s %s FROM %s WHERE %s",
 			   $distinct_select,
-			   join( ',', map { $self -> _db_table() . "." . $_ } @fields_names ),
+			   join( ',', map { ( $args{ '_table_alias' }
+					      or
+					      $self -> _db_table() ) . "." . $_ } @fields_names ),
 			   join( ',', @tables_to_select_from ), 
 			   join( ' ' . ( $args{ '_logic' } or 'AND' ) . ' ', @where_args ) );
 
@@ -880,6 +885,7 @@ sub __form_where
 	my $self = shift;
 
 	my @args = @_;
+	my %args = @args;
 
 	my @where_args = ();
 
@@ -976,7 +982,11 @@ fhFwaEknUtY5xwNr:
 
 		if( $op )
 		{
-			push @where_args, sprintf( '%s.%s %s %s', $self -> _db_table(), $col, $op, $val );
+			push @where_args, sprintf( '%s.%s %s %s', 
+						   ( $args{ '_table_alias' } or $self -> _db_table() ),
+						   $col,
+						   $op,
+						   $val );
 		}
 	}
 

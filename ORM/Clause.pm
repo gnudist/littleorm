@@ -25,6 +25,7 @@ use Moose;
 
 has 'logic' => ( is => 'rw', isa => 'Str', default => 'AND' );
 has 'model' => ( is => 'rw', isa => 'Str', required => 1 );
+has 'table_alias' => ( is => 'rw', isa => 'Maybe[Str]' );
 has 'cond' => ( is => 'rw', isa => 'ArrayRef', default => sub { [] } );
 
 sub sql
@@ -55,7 +56,8 @@ sub gen_clauses
 		{
 			my $value = shift @c;
 
-			push @rv, $self -> model() -> __form_where( $item => $value );
+			push @rv, $self -> model() -> __form_where( $item => $value,
+								    _table_alias => $self -> table_alias() );
 
 		}
 	}

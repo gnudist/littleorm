@@ -11,6 +11,56 @@ sub f
 	return &filter( @_ );
 }
 
+sub disambiguate_filter_args
+{
+	my ( $self, $args ) = @_;
+
+	my $argsno = scalar @{ $args };
+
+	if( $argsno % 2 ) # odd args number - need to disambiguate
+	{
+		my $class = ( ref( $self ) or $self );
+		my @disambiguated = ();
+
+		for( my $i = 0; $i < $argsno; $i ++ )
+		{
+			my $arg = $args -> [ $i ];
+
+			if( blessed( $arg ) and $arg -> isa( 'ORM::Filter' ) )
+			{
+				unless( $i % 2 )
+				{
+					# this will wrk only with single column PKs
+
+					if( my $attr_co_connect = &ORM::Filter::find_corresponding_fk_attr_between_models( $class,
+															   $arg -> model() ) )
+					{
+						push @disambiguated, $attr_co_connect;
+
+					} elsif( my $rev_connect = &ORM::Filter::find_corresponding_fk_attr_between_models( $arg -> model(),
+															    $class ) )
+					{
+						push @disambiguated, $class -> __find_primary_key() -> name();
+						$arg -> returning( $rev_connect );
+
+
+					} else
+					{
+						assert( 0,
+							sprintf( "Can not automatically connect %s and %s - do they have FK between?",
+								 $class,
+								 $arg -> model() ) );
+					}
+				}
+			}
+			push @disambiguated, $arg;
+		}
+		$args = \@disambiguated;
+	}
+
+	return $args;
+}
+
 sub filter
 {
 	my ( $self, @args ) = @_;
@@ -23,17 +73,39 @@ sub filter
 
 	my $rv = ORM::Filter -> new( model => $class );
 
-	foreach my $arg ( @args )
+	@args = @{ $self -> disambiguate_filter_args( \@args ) };
+
+	while( my $arg = shift @args )
 	{
-		if( blessed( $arg ) and $arg -> isa( 'ORM::Filter' ) )
+		my $val = shift @args;
+
+		if( $arg eq '_return' )
 		{
+			assert( $self -> meta() -> find_attribute_by_name( $val ), sprintf( 'Incorrect %s attribute "%s" in return',
+											    $class,
+											    $val ) );
+			$rv -> returning( $val ); 
 
-			map { $rv -> push_clause( $_ ) } @{ $arg -> clauses() };
+		} elsif( blessed( $val ) and $val -> isa( 'ORM::Filter' ) )
+		{
+			map { $rv -> push_clause( $_, $val -> table_alias() ) } @{ $val -> clauses() };
 
+			my $conn_sql = sprintf( "%s.%s=%s.%s",
+						# $self -> _db_table(),
+						$rv -> table_alias(),
+						&ORM::Model::__get_db_field_name( $self -> meta() -> find_attribute_by_name( $arg ) ),
+						# $val -> model() -> _db_table(),
+						$val -> table_alias(),
+						&ORM::Model::__get_db_field_name( $val -> model() -> meta() -> find_attribute_by_name( $val -> get_returning() ) ) );
 
+			$rv -> push_clause( $self -> clause( cond => [ _where => $conn_sql ] ) );
+
+		} elsif( blessed( $val ) and $val -> isa( 'ORM::Clause' ) )
+		{
+			$rv -> push_clause( $val );
 		} else
 		{
-			push @clauseargs, $arg;
+			push @clauseargs, ( $arg, $val );
 		}
 
 	}
@@ -56,22 +128,66 @@ package ORM::Filter;
 # Actual filter implementation:
 
 use Moose;
+use Digest::MD5 'md5_hex';
 
 has 'model' => ( is => 'rw', isa => 'Str', required => 1 );
+has 'table_alias' => ( is => 'rw', isa => 'Str', default => \&get_uniq_alias_for_table );
+has 'returning' => ( is => 'rw', isa => 'Maybe[Str]' ); # return column name for connecting with other filter
 has 'clauses' => ( is => 'rw', isa => 'ArrayRef[ORM::Clause]', default => sub { [] } );
 
 use Carp::Assert 'assert';
 use List::MoreUtils 'uniq';
 
+{
+	my $counter = 0;
+
+	sub get_uniq_alias_for_table
+	{
+		$counter ++;
+
+		return "T" . $counter;
+	}
+
+}
+
 sub push_clause
 {
-	my ( $self, $clause ) = @_;
+	my ( $self, $clause, $table_alias ) = @_;
+
+	# maybe clone here to preserve original clause obj ?
+
+	unless( $table_alias )
+	{
+		$table_alias = $self -> table_alias();
+	}
+
+	unless( $clause -> table_alias() )
+	{
+		$clause -> table_alias( $table_alias );
+	}
 
 	push @{ $self -> clauses() }, $clause;
 
 	return $self -> clauses();
 }
 
+sub get_returning
+{
+	my $self = shift;
+
+	my $rv = $self -> returning();
+
+	unless( $rv )
+	{
+		assert( my $pk = $self -> model() -> __find_primary_key(),
+			sprintf( 'Model %s must have PK or specify "returning" manually',
+				 $self -> model() ) );
+		$rv = $pk -> name();
+	}
+
+	return $rv;
+
+}
 
 sub translate_into_sql_clauses
 {
@@ -88,36 +204,24 @@ sub translate_into_sql_clauses
 
 		push @all_clauses_together, $clause -> sql();
 
-		if( $i < $clauses_number - 1 )
-		{
-			my $next_clause = $self -> clauses() -> [ $i + 1 ];
-
-			assert( my $connecting_sql = $self -> construct_connecting_sql_between( $clause -> model(),
-												$next_clause -> model() ),
-				sprintf( 'Could not connect %s to %s (do they have FK between them?)',
-					 $clause -> model(),
-					 $next_clause -> model() ) );
-
-			push @all_clauses_together, $connecting_sql;
-
-		}
 	}
 
 	return @all_clauses_together;
 }
 
-sub all_models_used_in_filter
+sub all_tables_used_in_filter
 {
 	my $self = shift;
 
-	my @rv = ();
+	my %rv = ();
 
 	foreach my $c ( @{ $self -> clauses() } )
 	{
-		push @rv, $c -> model();
+		assert( $c -> table_alias(), 'Unknown clause origin' );
+		$rv{ $c -> table_alias() } = $c -> model() -> _db_table();
 	}
 
-	return @rv;
+	return %rv;
 }
 
 sub get_many
@@ -153,14 +257,17 @@ sub call_orm_method
 
 	my @args = @_;
 
+	my %all = $self -> all_tables_used_in_filter();
+
 	return $self -> model() -> $method( @args,
-					    _tables_to_select_from => [ uniq map { $_ -> _db_table() } $self -> all_models_used_in_filter() ],
+					    _table_alias => $self -> table_alias(),
+					    _tables_to_select_from => [ map { sprintf( "%s %s", $all{ $_ }, $_ ) } keys %all ],
 					    _where => join( ' AND ', $self -> translate_into_sql_clauses() ) );
 }
 
-sub construct_connecting_sql_between_actually_do
+sub find_corresponding_fk_attr_between_models
 {
-	my ( $self, $model1, $model2 ) = @_;
+	my ( $model1, $model2 ) = @_;
 
 	my $rv = undef;
 
@@ -171,39 +278,11 @@ DQoYV7htzKfc5YJC:
 		{
 			if( $model2 eq $fk )
 			{
-				my $foreign_key_attr_name = &ORM::Model::__descr_attr( $attr, 'foreign_key_attr_name' );
-				
-				unless( $foreign_key_attr_name )
-				{
-					my $his_pk = $model2 -> __find_primary_key();
-					$foreign_key_attr_name = $his_pk -> name();
-				}
-				
-				
-				$rv = sprintf( " ( %s.%s = %s.%s ) ",
-					       $model1 -> _db_table(),
-					       &ORM::Model::__get_db_field_name( $attr ),
-					       $model2 -> _db_table(),
-					       $foreign_key_attr_name );
-				last DQoYV7htzKfc5YJC;
+				$rv = $attr -> name();
 			}
 		}
 	}
 	
-	return $rv;
-}
-
-sub construct_connecting_sql_between
-{
-	my ( $self, $model1, $model2 ) = @_;
-
-	my $rv = undef;
-
-
-	$rv = ( $self -> construct_connecting_sql_between_actually_do( $model1, $model2 )
-		or
-		$self -> construct_connecting_sql_between_actually_do( $model2, $model1 ) );
-
 	return $rv;
 }
 
