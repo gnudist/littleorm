@@ -129,7 +129,6 @@ package ORM::Filter;
 # Actual filter implementation:
 
 use Moose;
-use Digest::MD5 'md5_hex';
 
 has 'model' => ( is => 'rw', isa => 'Str', required => 1 );
 has 'table_alias' => ( is => 'rw', isa => 'Str', default => \&get_uniq_alias_for_table );
