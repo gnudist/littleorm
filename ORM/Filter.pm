@@ -15,17 +15,14 @@ sub disambiguate_filter_args
 {
 	my ( $self, $args ) = @_;
 
-	my $argsno = scalar @{ $args };
-
-	if( $argsno % 2 ) # odd args number - need to disambiguate
 	{
+		my $argsno = scalar @{ $args };
 		my $class = ( ref( $self ) or $self );
 		my @disambiguated = ();
 
-		for( my $i = 0; $i < $argsno; $i ++ )
+		my $i = 0;
+		foreach my $arg ( @{ $args } )
 		{
-			my $arg = $args -> [ $i ];
-
 			if( blessed( $arg ) and $arg -> isa( 'ORM::Filter' ) )
 			{
 				unless( $i % 2 )
@@ -36,12 +33,14 @@ sub disambiguate_filter_args
 															   $arg -> model() ) )
 					{
 						push @disambiguated, $attr_co_connect;
+						$i ++;
 
 					} elsif( my $rev_connect = &ORM::Filter::find_corresponding_fk_attr_between_models( $arg -> model(),
 															    $class ) )
 					{
 						push @disambiguated, $class -> __find_primary_key() -> name();
 						$arg -> returning( $rev_connect );
+						$i ++;
 
 
 					} else
@@ -54,6 +53,7 @@ sub disambiguate_filter_args
 				}
 			}
 			push @disambiguated, $arg;
+			$i ++;
 		}
 		$args = \@disambiguated;
 	}
@@ -74,6 +74,7 @@ sub filter
 	my $rv = ORM::Filter -> new( model => $class );
 
 	@args = @{ $self -> disambiguate_filter_args( \@args ) };
+	assert( scalar @args % 2 == 0 );
 
 	while( my $arg = shift @args )
 	{
