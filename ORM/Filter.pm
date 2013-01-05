@@ -51,7 +51,15 @@ sub disambiguate_filter_args
 								 $arg -> model() ) );
 					}
 				}
+			} elsif( blessed( $arg ) and $arg -> isa( 'ORM::Clause' ) )
+			{
+				unless( $i % 2 )
+				{
+					push @disambiguated, '_clause';
+					$i ++;
+				}
 			}
+
 			push @disambiguated, $arg;
 			$i ++;
 		}
@@ -99,7 +107,8 @@ sub filter
 						$val -> table_alias(),
 						&ORM::Model::__get_db_field_name( $val -> model() -> meta() -> find_attribute_by_name( $val -> get_returning() ) ) );
 
-			$rv -> push_clause( $self -> clause( cond => [ _where => $conn_sql ] ) );
+			$rv -> push_clause( $self -> clause( cond => [ _where => $conn_sql ],
+							     table_alias => $rv -> table_alias() ) );
 
 		} elsif( blessed( $val ) and $val -> isa( 'ORM::Clause' ) )
 		{
@@ -112,9 +121,9 @@ sub filter
 	}
 
 	{
-
 		my $clause = ORM::Clause -> new( model => $class,
-						 cond => \@clauseargs );
+						 cond => \@clauseargs,
+						 table_alias => $rv -> table_alias() );
 
 		$rv -> push_clause( $clause );
 	}
@@ -154,15 +163,20 @@ sub push_clause
 {
 	my ( $self, $clause, $table_alias ) = @_;
 
-	# maybe clone here to preserve original clause obj ?
-
-	unless( $table_alias )
-	{
-		$table_alias = $self -> table_alias();
-	}
-
 	unless( $clause -> table_alias() )
 	{
+
+		unless( $table_alias )
+		{
+			$table_alias = $self -> table_alias();
+		}
+
+
+		# maybe clone here to preserve original clause obj ?
+
+		my $copy = bless( { %{ $clause } }, ref $clause );
+		$clause = $copy;
+
 		$clause -> table_alias( $table_alias );
 	}
 
