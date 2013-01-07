@@ -8,14 +8,7 @@ use warnings FATAL => 'all';
 
 LittleORM::Tutorial - how to use LittleORM
 
-=head1 VERSION
-
-Version 0.01
-
 =cut
-
-our $VERSION = '0.01';
-
 
 =head1 INTRODUCTION
 

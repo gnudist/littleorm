@@ -18,8 +18,12 @@ WriteMakefile(
         'Test::More' => 0,
     },
     PREREQ_PM => {
-        #'ABC'              => 1.6,
-        #'Foo::Bar::Module' => 5.0401,
+        'Moose'                        => 0,
+	'Carp::Assert'                 => 0,
+	'List::MoreUtils'              => 0,
+	'Scalar::Util'                 => 0,
+	'Moose::Util::TypeConstraints' => 0
+
     },
     dist  => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean => { FILES => 'LittleORM-*' },
