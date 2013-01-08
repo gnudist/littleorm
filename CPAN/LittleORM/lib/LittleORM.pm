@@ -25,7 +25,7 @@ Please refer to LittleORM::Tutorial for thorough description of LittleORM.
 
 =head1 AUTHOR
 
-Eugene Kuzin, C<< <eugenek at 45-98.org> >>
+Eugene Kuzin, C<< <eugenek at 45-98.org> >>, JID: C<< <gnudist at jabber.ru> >>
 
 =head1 BUGS
 
