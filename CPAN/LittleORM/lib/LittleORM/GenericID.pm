@@ -9,8 +9,6 @@ use Moose;
 
 extends 'LittleORM::Model';
 
-sub _db_table{ 'CHANGEME' }
-
 has 'id' => ( metaclass => 'LittleORM::Meta::Attribute',
 	      isa => 'Int',
 	      is => 'rw',

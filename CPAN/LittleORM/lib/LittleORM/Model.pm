@@ -8,11 +8,13 @@ use Moose::Util::TypeConstraints;
 
 has '_rec' => ( is => 'rw', isa => 'HashRef', required => 1, metaclass => 'LittleORM::Meta::Attribute', description => { ignore => 1 } );
 
-use Carp::Assert;
+use Carp::Assert 'assert';
 use Scalar::Util 'blessed';
 
+sub _db_table{ assert( 0, '" _db_table " method must be redefined.' ) }
+
 # Let it be separate method, m'kay?
-sub clear
+sub _clear
 {
 	my $self = shift;
 
@@ -69,7 +71,7 @@ sub reload
 			$get_args{ $pkname } = $self -> $pkname();
 		}
 
-		$self -> clear();
+		$self -> _clear();
 
 		my $sql = $self -> __form_get_sql( %get_args,
 						   _limit => 1 );

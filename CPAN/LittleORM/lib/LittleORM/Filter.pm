@@ -11,7 +11,7 @@ sub f
 	return &filter( @_ );
 }
 
-sub disambiguate_filter_args
+sub _disambiguate_filter_args
 {
 	my ( $self, $args ) = @_;
 
@@ -81,7 +81,7 @@ sub filter
 
 	my $rv = LittleORM::Filter -> new( model => $class );
 
-	@args = @{ $self -> disambiguate_filter_args( \@args ) };
+	@args = @{ $self -> _disambiguate_filter_args( \@args ) };
 	assert( scalar @args % 2 == 0 );
 
 	while( my $arg = shift @args )
