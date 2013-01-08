@@ -9,8 +9,6 @@ use Moose;
 
 extends 'ORM::Model';
 
-sub _db_table{ 'CHANGEME' }
-
 has 'id' => ( metaclass => 'ORM::Meta::Attribute',
 	      isa => 'Int',
 	      is => 'rw',

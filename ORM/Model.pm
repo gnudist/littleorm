@@ -8,11 +8,13 @@ use Moose::Util::TypeConstraints;
 
 has '_rec' => ( is => 'rw', isa => 'HashRef', required => 1, metaclass => 'ORM::Meta::Attribute', description => { ignore => 1 } );
 
-use Carp::Assert;
+use Carp::Assert 'assert';
 use Scalar::Util 'blessed';
 
+sub _db_table{ assert( 0, '" _db_table " method must be redefined.' ) }
+
 # Let it be separate method, m'kay?
-sub clear
+sub _clear
 {
 	my $self = shift;
 
@@ -69,7 +71,7 @@ sub reload
 			$get_args{ $pkname } = $self -> $pkname();
 		}
 
-		$self -> clear();
+		$self -> _clear();
 
 		my $sql = $self -> __form_get_sql( %get_args,
 						   _limit => 1 );
@@ -314,14 +316,6 @@ ETxc0WxZs0boLUm1:
 
 		assert( $where = join( ' AND ', @where ) );
 	}
-
-
-	# my $sql = sprintf( 'UPDATE %s SET %s WHERE %s=%s',
-	# 		   $self -> _db_table(),
-	# 		   join( ',', @upadte_pairs ),
-	# 		   &__get_db_field_name( $pkattr ),
-	# 		   &ORM::Db::dbq( &__prep_value_for_db( $pkattr, $self -> $pkname() ),
-	# 				  $self -> __get_dbh() ) );
 
 	my $sql = sprintf( 'UPDATE %s SET %s WHERE %s',
 			   $self -> _db_table(),
@@ -949,7 +943,7 @@ fhFwaEknUtY5xwNr:
 				{
 					
 					$val = sprintf( '(%s)', join( ',', map { &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $_ ),
-												$dbh ) } @{ $rval } ) );
+												      $dbh ) } @{ $rval } ) );
 
 				} else
 				{
