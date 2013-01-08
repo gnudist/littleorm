@@ -411,7 +411,8 @@ object. This object may then be used in get(), get_many(), and
 filter().
 
 It can simplify get() methods arguments. Also it can help you separate
-selection arguments building from records selecting and processing.
+selection arguments building from records selecting and processing. Be
+sure to look at B<< LittleORM::Filter >> too.
 
 They (Clause objects) can also be combined flexibly.
 
