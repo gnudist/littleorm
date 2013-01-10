@@ -8,7 +8,8 @@ package ORM::Model;
 
 sub f
 {
-	return &filter( @_ );
+	my $self = shift;
+	return $self -> filter( @_ );
 }
 
 sub _disambiguate_filter_args
@@ -97,18 +98,22 @@ sub filter
 
 		} elsif( blessed( $val ) and $val -> isa( 'ORM::Filter' ) )
 		{
+
+			$rv -> connect_filter( $arg => $val );
+
+=pod
 			map { $rv -> push_clause( $_, $val -> table_alias() ) } @{ $val -> clauses() };
 
 			my $conn_sql = sprintf( "%s.%s=%s.%s",
-						# $self -> _db_table(),
 						$rv -> table_alias(),
 						&ORM::Model::__get_db_field_name( $self -> meta() -> find_attribute_by_name( $arg ) ),
-						# $val -> model() -> _db_table(),
 						$val -> table_alias(),
 						&ORM::Model::__get_db_field_name( $val -> model() -> meta() -> find_attribute_by_name( $val -> get_returning() ) ) );
 
 			$rv -> push_clause( $self -> clause( cond => [ _where => $conn_sql ],
 							     table_alias => $rv -> table_alias() ) );
+
+=cut
 
 		} elsif( blessed( $val ) and $val -> isa( 'ORM::Clause' ) )
 		{
@@ -156,6 +161,38 @@ use List::MoreUtils 'uniq';
 
 		return "T" . $counter;
 	}
+
+}
+
+sub connect_filter
+{
+	my ( $self, $arg, $filter ) = @_;
+
+	unless( $filter )
+	{
+		if( $arg and $arg -> isa( 'ORM::Filter' ) )
+		{
+			my $args = $self -> model() -> _disambiguate_filter_args( $arg );
+
+			( $arg, $filter ) = @{ $args };
+
+
+		} else
+		{
+			assert( 0, 'check args sanity' );
+		}
+	}
+
+	map { $self -> push_clause( $_, $filter -> table_alias() ) } @{ $filter -> clauses() };
+
+	my $conn_sql = sprintf( "%s.%s=%s.%s",
+				$self -> table_alias(),
+				&ORM::Model::__get_db_field_name( $self -> model() -> meta() -> find_attribute_by_name( $arg ) ),
+				$filter -> table_alias(),
+				&ORM::Model::__get_db_field_name( $filter -> model() -> meta() -> find_attribute_by_name( $filter -> get_returning() ) ) );
+
+	$self -> push_clause( $self -> model() -> clause( cond => [ _where => $conn_sql ],
+							  table_alias => $self -> table_alias() ) );
 
 }
 
