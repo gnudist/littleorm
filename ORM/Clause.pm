@@ -32,7 +32,7 @@ sub sql
 {
 	my $self = shift;
 
-	my @rv = $self -> gen_clauses();
+	my @rv = $self -> gen_clauses( @_ );
 
 	return sprintf( ' ( %s ) ', join( ' '. $self -> logic() . ' ', @rv ) );
 }
@@ -40,6 +40,7 @@ sub sql
 sub gen_clauses
 {
 	my $self = shift;
+	my @args = @_;
 
 	my @rv = ();
 
@@ -56,7 +57,8 @@ sub gen_clauses
 		{
 			my $value = shift @c;
 
-			push @rv, $self -> model() -> __form_where( $item => $value,
+			push @rv, $self -> model() -> __form_where( @args,
+								    $item => $value,
 								    _table_alias => $self -> table_alias() );
 
 		}

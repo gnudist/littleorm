@@ -270,7 +270,7 @@ sub get_returning
 sub translate_into_sql_clauses
 {
 	my $self = shift;
-
+	my @args = @_;
 
 	my $clauses_number = scalar @{ $self -> clauses() };
 
@@ -280,7 +280,7 @@ sub translate_into_sql_clauses
 	{
 		my $clause = $self -> clauses() -> [ $i ];
 
-		push @all_clauses_together, $clause -> sql();
+		push @all_clauses_together, $clause -> sql( @args );
 
 	}
 
@@ -340,7 +340,7 @@ sub call_orm_method
 	return $self -> model() -> $method( @args,
 					    _table_alias => $self -> table_alias(),
 					    _tables_to_select_from => [ map { sprintf( "%s %s", $all{ $_ }, $_ ) } keys %all ],
-					    _where => join( ' AND ', $self -> translate_into_sql_clauses() ) );
+					    _where => join( ' AND ', $self -> translate_into_sql_clauses( @args ) ) );
 }
 
 sub find_corresponding_fk_attr_between_models
