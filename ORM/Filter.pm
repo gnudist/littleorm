@@ -17,6 +17,8 @@ sub _disambiguate_filter_args
 	my ( $self, $args ) = @_;
 
 	{
+		assert( ref( $args ) eq 'ARRAY', 'sanity assert' );
+
 		my $argsno = scalar @{ $args };
 		my $class = ( ref( $self ) or $self );
 		my @disambiguated = ();
@@ -172,7 +174,7 @@ sub connect_filter
 	{
 		if( $arg and $arg -> isa( 'ORM::Filter' ) )
 		{
-			my $args = $self -> model() -> _disambiguate_filter_args( $arg );
+			my $args = $self -> model() -> _disambiguate_filter_args( [ $arg ] );
 
 			( $arg, $filter ) = @{ $args };
 
@@ -200,24 +202,49 @@ sub push_clause
 {
 	my ( $self, $clause, $table_alias ) = @_;
 
+
 	unless( $clause -> table_alias() )
 	{
-
 		unless( $table_alias )
 		{
-			$table_alias = $self -> table_alias();
+			if( $self -> model() eq $clause -> model() )
+			{
+				$table_alias = $self -> table_alias();
+
+				# maybe clone here to preserve original clause obj ?
+				my $copy = bless( { %{ $clause } }, ref $clause );
+				$clause = $copy;
+				$clause -> table_alias( $table_alias );
+			}
 		}
-
-
-		# maybe clone here to preserve original clause obj ?
-
-		my $copy = bless( { %{ $clause } }, ref $clause );
-		$clause = $copy;
-
-		$clause -> table_alias( $table_alias );
 	}
 
-	push @{ $self -> clauses() }, $clause;
+	if( $clause -> table_alias() )
+	{
+
+		push @{ $self -> clauses() }, $clause;
+
+	} else
+	{
+		assert( $self -> model() ne $clause -> model(), 'sanity assert' );
+
+		my $other_model_filter = $clause -> model() -> filter( $clause );
+		$self -> connect_filter( $other_model_filter );
+
+
+	}
+
+
+
+	# if( $self -> model() eq $clause -> model() )
+	# {
+
+	# } else
+	# {
+	# 	my $other_model_filter = $clause -> model() -> filter( _clause => $clause );
+	# 	$self -> connect_filter( $other_model_filter );
+	# }
+
 
 	return $self -> clauses();
 }
