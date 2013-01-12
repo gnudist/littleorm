@@ -717,6 +717,18 @@ example:
 
 
 
+You can connect filters after they have been created with I<connect_filter()>. Same as above:
+
+
+    my $f = Metatable -> f( rgroup => 100500,
+                            _clause => $c1 );
+
+    my $f1 = Metatable -> f( rgroup => 500100,
+                             _return => 'f02' )
+    
+    $f -> connect_filter( f01 => $f1 );
+
+
 
 =head1 API REFERENCE
 
@@ -764,18 +776,21 @@ I<< count() >>
 Get matching records count (integer).
 
 I<< create() >>
+
 Create new record in DB. Returns newly created object.
 
-I<<update()>>
+I<< update() >>
+
 Write changes you made to object actually to DB.
 
 
-I<<copy()>>
+I<< copy() >>
 
 Actually copy record. New object corresponding to new record is returned.
 
 
 I<< delete() >>
+
 Delete records from DB.
 
 I<< With LittleORM::Clause: >>

@@ -8,7 +8,8 @@ package LittleORM::Model;
 
 sub f
 {
-	return &filter( @_ );
+	my $self = shift;
+	return $self -> filter( @_ );
 }
 
 sub _disambiguate_filter_args
@@ -16,6 +17,8 @@ sub _disambiguate_filter_args
 	my ( $self, $args ) = @_;
 
 	{
+		assert( ref( $args ) eq 'ARRAY', 'sanity assert' );
+
 		my $argsno = scalar @{ $args };
 		my $class = ( ref( $self ) or $self );
 		my @disambiguated = ();
@@ -30,13 +33,13 @@ sub _disambiguate_filter_args
 					# this will wrk only with single column PKs
 
 					if( my $attr_co_connect = &LittleORM::Filter::find_corresponding_fk_attr_between_models( $class,
-															   $arg -> model() ) )
+																 $arg -> model() ) )
 					{
 						push @disambiguated, $attr_co_connect;
 						$i ++;
 
 					} elsif( my $rev_connect = &LittleORM::Filter::find_corresponding_fk_attr_between_models( $arg -> model(),
-															    $class ) )
+																  $class ) )
 					{
 						push @disambiguated, $class -> __find_primary_key() -> name();
 						$arg -> returning( $rev_connect );
@@ -97,18 +100,9 @@ sub filter
 
 		} elsif( blessed( $val ) and $val -> isa( 'LittleORM::Filter' ) )
 		{
-			map { $rv -> push_clause( $_, $val -> table_alias() ) } @{ $val -> clauses() };
 
-			my $conn_sql = sprintf( "%s.%s=%s.%s",
-						# $self -> _db_table(),
-						$rv -> table_alias(),
-						&LittleORM::Model::__get_db_field_name( $self -> meta() -> find_attribute_by_name( $arg ) ),
-						# $val -> model() -> _db_table(),
-						$val -> table_alias(),
-						&LittleORM::Model::__get_db_field_name( $val -> model() -> meta() -> find_attribute_by_name( $val -> get_returning() ) ) );
+			$rv -> connect_filter( $arg => $val );
 
-			$rv -> push_clause( $self -> clause( cond => [ _where => $conn_sql ],
-							     table_alias => $rv -> table_alias() ) );
 
 		} elsif( blessed( $val ) and $val -> isa( 'LittleORM::Clause' ) )
 		{
@@ -124,7 +118,7 @@ sub filter
 		my $clause = LittleORM::Clause -> new( model => $class,
 						       cond => \@clauseargs,
 						       table_alias => $rv -> table_alias() );
-
+		
 		$rv -> push_clause( $clause );
 	}
 
@@ -159,28 +153,85 @@ use List::MoreUtils 'uniq';
 
 }
 
+sub connect_filter
+{
+	my ( $self, $arg, $filter ) = @_;
+
+	unless( $filter )
+	{
+		if( $arg and $arg -> isa( 'LittleORM::Filter' ) )
+		{
+			my $args = $self -> model() -> _disambiguate_filter_args( [ $arg ] );
+
+			( $arg, $filter ) = @{ $args };
+
+
+		} else
+		{
+			assert( 0, 'check args sanity' );
+		}
+	}
+
+	map { $self -> push_clause( $_, $filter -> table_alias() ) } @{ $filter -> clauses() };
+
+	my $conn_sql = sprintf( "%s.%s=%s.%s",
+				$self -> table_alias(),
+				&LittleORM::Model::__get_db_field_name( $self -> model() -> meta() -> find_attribute_by_name( $arg ) ),
+				$filter -> table_alias(),
+				&LittleORM::Model::__get_db_field_name( $filter -> model() -> meta() -> find_attribute_by_name( $filter -> get_returning() ) ) );
+
+	$self -> push_clause( $self -> model() -> clause( cond => [ _where => $conn_sql ],
+							  table_alias => $self -> table_alias() ) );
+
+}
+
 sub push_clause
 {
 	my ( $self, $clause, $table_alias ) = @_;
 
+
 	unless( $clause -> table_alias() )
 	{
-
 		unless( $table_alias )
 		{
-			$table_alias = $self -> table_alias();
+			if( $self -> model() eq $clause -> model() )
+			{
+				$table_alias = $self -> table_alias();
+
+				# maybe clone here to preserve original clause obj ?
+				my $copy = bless( { %{ $clause } }, ref $clause );
+				$clause = $copy;
+				$clause -> table_alias( $table_alias );
+			}
 		}
-
-
-		# maybe clone here to preserve original clause obj ?
-
-		my $copy = bless( { %{ $clause } }, ref $clause );
-		$clause = $copy;
-
-		$clause -> table_alias( $table_alias );
 	}
 
-	push @{ $self -> clauses() }, $clause;
+	if( $clause -> table_alias() )
+	{
+
+		push @{ $self -> clauses() }, $clause;
+
+	} else
+	{
+		assert( $self -> model() ne $clause -> model(), 'sanity assert' );
+
+		my $other_model_filter = $clause -> model() -> filter( $clause );
+		$self -> connect_filter( $other_model_filter );
+
+
+	}
+
+
+
+	# if( $self -> model() eq $clause -> model() )
+	# {
+
+	# } else
+	# {
+	# 	my $other_model_filter = $clause -> model() -> filter( _clause => $clause );
+	# 	$self -> connect_filter( $other_model_filter );
+	# }
+
 
 	return $self -> clauses();
 }
@@ -206,7 +257,7 @@ sub get_returning
 sub translate_into_sql_clauses
 {
 	my $self = shift;
-
+	my @args = @_;
 
 	my $clauses_number = scalar @{ $self -> clauses() };
 
@@ -216,7 +267,7 @@ sub translate_into_sql_clauses
 	{
 		my $clause = $self -> clauses() -> [ $i ];
 
-		push @all_clauses_together, $clause -> sql();
+		push @all_clauses_together, $clause -> sql( @args );
 
 	}
 
@@ -276,7 +327,7 @@ sub call_orm_method
 	return $self -> model() -> $method( @args,
 					    _table_alias => $self -> table_alias(),
 					    _tables_to_select_from => [ map { sprintf( "%s %s", $all{ $_ }, $_ ) } keys %all ],
-					    _where => join( ' AND ', $self -> translate_into_sql_clauses() ) );
+					    _where => join( ' AND ', $self -> translate_into_sql_clauses( @args ) ) );
 }
 
 sub find_corresponding_fk_attr_between_models
