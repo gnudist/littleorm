@@ -41,8 +41,31 @@ sub _disambiguate_filter_args
 					} elsif( my $rev_connect = &ORM::Filter::find_corresponding_fk_attr_between_models( $arg -> model(),
 															    $class ) )
 					{
-						push @disambiguated, $class -> __find_primary_key() -> name();
-						$arg -> returning( $rev_connect );
+						# print $class, "\n";
+						# print $arg -> model(), "\n";
+						# print $rev_connect, "\n";
+
+						my $to_connect_with = 0;
+
+						{
+							assert( my $attr = $arg -> model() -> meta() -> find_attribute_by_name( $rev_connect ) );
+
+							if( my $foreign_key_attr_name = &ORM::Model::__descr_attr( $attr, 'foreign_key_attr_name' ) )
+							{
+								$to_connect_with = $foreign_key_attr_name;
+							} else
+							{
+								$to_connect_with = $class -> __find_primary_key() -> name();
+							}
+
+						}
+
+						push @disambiguated, $to_connect_with;
+						unless( $arg -> returning() )
+						{
+							$arg -> returning( $rev_connect );
+						}
+
 						$i ++;
 
 
