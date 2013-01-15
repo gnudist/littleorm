@@ -46,12 +46,20 @@ sub gen_clauses
 
 	my @c = @{ $self -> cond() };
 
-	while ( @c )
+	while( @c )
 	{
 		my $item = shift @c;
 
 		if( ref( $item ) eq 'ORM::Clause' )
 		{
+			if( ( $item -> model() eq $self -> model() ) and ( my $ta = $self -> table_alias() ) and ( not $item -> table_alias() ) )
+			{
+				# copy obj ?
+				my $copy = bless( { %{ $item } }, ref $item );
+				$item = $copy;
+				$item -> table_alias( $ta );
+			}
+
 			push @rv, $item -> sql();
 		} else
 		{

@@ -900,7 +900,16 @@ fhFwaEknUtY5xwNr:
 		{
 			if( ref( $val ) eq 'ARRAY' )
 			{
-				$val = $self -> clause( @{ $val } );
+				my %more_args = ();
+
+				if( my $ta = $args{ '_table_alias' } )
+				{
+					$more_args{ 'table_alias' } = $ta;
+				}
+
+				$val = $self -> clause( @{ $val },
+							%more_args );
+
 			}
 
 			assert( ref( $val ) eq 'ORM::Clause' );
