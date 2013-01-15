@@ -900,10 +900,31 @@ fhFwaEknUtY5xwNr:
 		{
 			if( ref( $val ) eq 'ARRAY' )
 			{
-				$val = $self -> clause( @{ $val } );
+				my %more_args = ();
+
+				if( my $ta = $args{ '_table_alias' } )
+				{
+					$more_args{ 'table_alias' } = $ta;
+				}
+
+				$val = $self -> clause( @{ $val },
+							%more_args );
+
+				assert( ref( $val ) eq 'LittleORM::Clause' );
+			} else
+			{
+				assert( ref( $val ) eq 'LittleORM::Clause' );
+				if( my $ta = $args{ '_table_alias' } )
+				{
+					unless( $val -> table_alias() )
+					{
+						my $copy = bless( { %{ $val } }, ref $val );
+						$val = $copy;
+						$val -> table_alias( $ta );
+					}
+				}
 			}
 
-			assert( ref( $val ) eq 'LittleORM::Clause' );
 			push @where_args, $val -> sql();
 
 		}
@@ -948,7 +969,7 @@ fhFwaEknUtY5xwNr:
 				} else
 				{
 					$val = &LittleORM::Db::dbq( &__prep_value_for_db( $class_attr, $rval ),
-								    $dbh );
+							      $dbh );
 				}
 			}
 
@@ -958,18 +979,18 @@ fhFwaEknUtY5xwNr:
 			if( $class_attr_isa =~ 'ArrayRef' )
 			{
 				$val = &LittleORM::Db::dbq( &__prep_value_for_db( $class_attr, $val ),
-							    $dbh );
+						      $dbh );
 			} else
 			{
 				$op = 'IN';
 				$val = sprintf( '(%s)', join( ',', map { &LittleORM::Db::dbq( &__prep_value_for_db( $class_attr, $_ ),
-											      $dbh ) } @{ $val } ) );
+											$dbh ) } @{ $val } ) );
 			}
 
 		} else
 		{
 			$val = &LittleORM::Db::dbq( &__prep_value_for_db( $class_attr, $val ),
-						    $dbh );
+					      $dbh );
 		}
 
 		$op = $field -> appropriate_op( $op );

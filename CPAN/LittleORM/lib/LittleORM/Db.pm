@@ -28,7 +28,7 @@ sub __set_default_if_not_set
 
 	unless( &dbh_is_ok( $self -> get_dbh() ) )
 	{
-		# small racecond
+		# small racecond :)
 		$self -> init( $dbh );
 	}
 }

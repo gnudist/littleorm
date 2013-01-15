@@ -33,16 +33,39 @@ sub _disambiguate_filter_args
 					# this will wrk only with single column PKs
 
 					if( my $attr_co_connect = &LittleORM::Filter::find_corresponding_fk_attr_between_models( $class,
-																 $arg -> model() ) )
+															   $arg -> model() ) )
 					{
 						push @disambiguated, $attr_co_connect;
 						$i ++;
 
 					} elsif( my $rev_connect = &LittleORM::Filter::find_corresponding_fk_attr_between_models( $arg -> model(),
-																  $class ) )
+															    $class ) )
 					{
-						push @disambiguated, $class -> __find_primary_key() -> name();
-						$arg -> returning( $rev_connect );
+						# print $class, "\n";
+						# print $arg -> model(), "\n";
+						# print $rev_connect, "\n";
+
+						my $to_connect_with = 0;
+
+						{
+							assert( my $attr = $arg -> model() -> meta() -> find_attribute_by_name( $rev_connect ) );
+
+							if( my $foreign_key_attr_name = &LittleORM::Model::__descr_attr( $attr, 'foreign_key_attr_name' ) )
+							{
+								$to_connect_with = $foreign_key_attr_name;
+							} else
+							{
+								$to_connect_with = $class -> __find_primary_key() -> name();
+							}
+
+						}
+
+						push @disambiguated, $to_connect_with;
+						unless( $arg -> returning() )
+						{
+							$arg -> returning( $rev_connect );
+						}
+
 						$i ++;
 
 
@@ -103,6 +126,19 @@ sub filter
 
 			$rv -> connect_filter( $arg => $val );
 
+=pod
+			map { $rv -> push_clause( $_, $val -> table_alias() ) } @{ $val -> clauses() };
+
+			my $conn_sql = sprintf( "%s.%s=%s.%s",
+						$rv -> table_alias(),
+						&LittleORM::Model::__get_db_field_name( $self -> meta() -> find_attribute_by_name( $arg ) ),
+						$val -> table_alias(),
+						&LittleORM::Model::__get_db_field_name( $val -> model() -> meta() -> find_attribute_by_name( $val -> get_returning() ) ) );
+
+			$rv -> push_clause( $self -> clause( cond => [ _where => $conn_sql ],
+							     table_alias => $rv -> table_alias() ) );
+
+=cut
 
 		} elsif( blessed( $val ) and $val -> isa( 'LittleORM::Clause' ) )
 		{
@@ -116,9 +152,9 @@ sub filter
 
 	{
 		my $clause = LittleORM::Clause -> new( model => $class,
-						       cond => \@clauseargs,
-						       table_alias => $rv -> table_alias() );
-		
+						 cond => \@clauseargs,
+						 table_alias => $rv -> table_alias() );
+
 		$rv -> push_clause( $clause );
 	}
 
@@ -174,11 +210,29 @@ sub connect_filter
 
 	map { $self -> push_clause( $_, $filter -> table_alias() ) } @{ $filter -> clauses() };
 
-	my $conn_sql = sprintf( "%s.%s=%s.%s",
-				$self -> table_alias(),
-				&LittleORM::Model::__get_db_field_name( $self -> model() -> meta() -> find_attribute_by_name( $arg ) ),
-				$filter -> table_alias(),
-				&LittleORM::Model::__get_db_field_name( $filter -> model() -> meta() -> find_attribute_by_name( $filter -> get_returning() ) ) );
+	my $conn_sql = '';
+
+	{
+		my $attr1 = $self -> model() -> meta() -> find_attribute_by_name( $arg );
+		my $attr2 = $filter -> model() -> meta() -> find_attribute_by_name( $filter -> get_returning() );
+
+		my $attr1_t = &LittleORM::Model::__descr_attr( $attr1, 'db_field_type' );
+		my $attr2_t = &LittleORM::Model::__descr_attr( $attr2, 'db_field_type' );
+
+		my $cast = '';
+
+		if( $attr1_t and $attr2_t and ( $attr1_t ne $attr2_t ) )
+		{
+			$cast = '::' . $attr1_t;
+		}
+
+		$conn_sql = sprintf( "%s.%s=%s.%s%s",
+				     $self -> table_alias(),
+				     &LittleORM::Model::__get_db_field_name( $attr1 ),
+				     $filter -> table_alias(),
+				     &LittleORM::Model::__get_db_field_name( $attr2 ),
+				     $cast );
+	}
 
 	$self -> push_clause( $self -> model() -> clause( cond => [ _where => $conn_sql ],
 							  table_alias => $self -> table_alias() ) );
