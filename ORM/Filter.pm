@@ -210,11 +210,29 @@ sub connect_filter
 
 	map { $self -> push_clause( $_, $filter -> table_alias() ) } @{ $filter -> clauses() };
 
-	my $conn_sql = sprintf( "%s.%s=%s.%s",
-				$self -> table_alias(),
-				&ORM::Model::__get_db_field_name( $self -> model() -> meta() -> find_attribute_by_name( $arg ) ),
-				$filter -> table_alias(),
-				&ORM::Model::__get_db_field_name( $filter -> model() -> meta() -> find_attribute_by_name( $filter -> get_returning() ) ) );
+	my $conn_sql = '';
+
+	{
+		my $attr1 = $self -> model() -> meta() -> find_attribute_by_name( $arg );
+		my $attr2 = $filter -> model() -> meta() -> find_attribute_by_name( $filter -> get_returning() );
+
+		my $attr1_t = &ORM::Model::__descr_attr( $attr1, 'db_field_type' );
+		my $attr2_t = &ORM::Model::__descr_attr( $attr2, 'db_field_type' );
+
+		my $cast = '';
+
+		if( $attr1_t and $attr2_t and ( $attr1_t ne $attr2_t ) )
+		{
+			$cast = '::' . $attr1_t;
+		}
+
+		$conn_sql = sprintf( "%s.%s=%s.%s%s",
+				     $self -> table_alias(),
+				     &ORM::Model::__get_db_field_name( $attr1 ),
+				     $filter -> table_alias(),
+				     &ORM::Model::__get_db_field_name( $attr2 ),
+				     $cast );
+	}
 
 	$self -> push_clause( $self -> model() -> clause( cond => [ _where => $conn_sql ],
 							  table_alias => $self -> table_alias() ) );
