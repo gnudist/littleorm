@@ -910,9 +910,21 @@ fhFwaEknUtY5xwNr:
 				$val = $self -> clause( @{ $val },
 							%more_args );
 
+				assert( ref( $val ) eq 'ORM::Clause' );
+			} else
+			{
+				assert( ref( $val ) eq 'ORM::Clause' );
+				if( my $ta = $args{ '_table_alias' } )
+				{
+					unless( $val -> table_alias() )
+					{
+						my $copy = bless( { %{ $val } }, ref $val );
+						$val = $copy;
+						$val -> table_alias( $ta );
+					}
+				}
 			}
 
-			assert( ref( $val ) eq 'ORM::Clause' );
 			push @where_args, $val -> sql();
 
 		}
