@@ -126,20 +126,6 @@ sub filter
 
 			$rv -> connect_filter( $arg => $val );
 
-=pod
-			map { $rv -> push_clause( $_, $val -> table_alias() ) } @{ $val -> clauses() };
-
-			my $conn_sql = sprintf( "%s.%s=%s.%s",
-						$rv -> table_alias(),
-						&LittleORM::Model::__get_db_field_name( $self -> meta() -> find_attribute_by_name( $arg ) ),
-						$val -> table_alias(),
-						&LittleORM::Model::__get_db_field_name( $val -> model() -> meta() -> find_attribute_by_name( $val -> get_returning() ) ) );
-
-			$rv -> push_clause( $self -> clause( cond => [ _where => $conn_sql ],
-							     table_alias => $rv -> table_alias() ) );
-
-=cut
-
 		} elsif( blessed( $val ) and $val -> isa( 'LittleORM::Clause' ) )
 		{
 			$rv -> push_clause( $val );

@@ -10,16 +10,16 @@ LittleORM - ORM for Perl with Moose.
 
 =head1 VERSION
 
-Version 0.04
+Version 0.05
 
 =cut
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 
 =head1 SYNOPSIS
 
-Please refer to LittleORM::Tutorial for thorough description of LittleORM.
+Please refer to L<LittleORM::Tutorial> for thorough description of LittleORM.
 
 =cut
 
