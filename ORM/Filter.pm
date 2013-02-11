@@ -121,6 +121,10 @@ sub filter
 											    $val ) );
 			$rv -> returning( $val ); 
 
+		} elsif( $arg eq '_sortby' )
+		{
+			assert( 0, '_sortby is not allowed in filter' );
+
 		} elsif( blessed( $val ) and $val -> isa( 'ORM::Filter' ) )
 		{
 
@@ -199,8 +203,11 @@ sub connect_filter
 	my $conn_sql = '';
 
 	{
-		my $attr1 = $self -> model() -> meta() -> find_attribute_by_name( $arg );
-		my $attr2 = $filter -> model() -> meta() -> find_attribute_by_name( $filter -> get_returning() );
+		assert( my $attr1 = $self -> model() -> meta() -> find_attribute_by_name( $arg ),
+			'Injalid attribute 1 in filter: ' . $arg );
+
+		assert( my $attr2 = $filter -> model() -> meta() -> find_attribute_by_name( $filter -> get_returning() ),
+			'Injalid attribute 2 in filter (much rarer case)' );
 
 		my $attr1_t = &ORM::Model::__descr_attr( $attr1, 'db_field_type' );
 		my $attr2_t = &ORM::Model::__descr_attr( $attr2, 'db_field_type' );
