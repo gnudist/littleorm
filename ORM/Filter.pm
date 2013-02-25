@@ -209,6 +209,15 @@ sub connect_filter
 		assert( my $attr2 = $filter -> model() -> meta() -> find_attribute_by_name( $filter -> get_returning() ),
 			'Injalid attribute 2 in filter (much rarer case)' );
 
+		if( my $fk = &ORM::Model::__descr_attr( $attr1, 'foreign_key' ) )
+		{
+			if( ( $fk eq $filter -> model() ) and ( my $fkattr = &ORM::Model::__descr_attr( $attr1, 'foreign_key_attr_name' ) ) )
+			{
+				assert( $attr2 = $filter -> model() -> meta() -> find_attribute_by_name( $fkattr ),
+					'Injalid attribute 2 in filter (subcase of much rarer case)' );
+			}
+		}
+
 		my $attr1_t = &ORM::Model::__descr_attr( $attr1, 'db_field_type' );
 		my $attr2_t = &ORM::Model::__descr_attr( $attr2, 'db_field_type' );
 
