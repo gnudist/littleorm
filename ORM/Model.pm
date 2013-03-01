@@ -251,13 +251,25 @@ sub min
 
 sub __default_db_field_name_for_func
 {
-	my ( $self, $func ) = @_;
+	my ( $self, %args ) = @_;
 
 	my $rv = '';
+	assert( my $func = $args{ '_func' } );
 
 	if( $func eq 'count' )
 	{
 		$rv = '*';
+		if( $args{ '_distinct' } )
+		{
+			if( my @pk = $self -> __find_primary_keys() )
+			{
+				assert( scalar @pk == 1, "count of distinct is not yet supported for multiple PK models" );
+				my @fields = map { sprintf( "%s.%s",
+							    ( $args{ '_table_alias' } or $self -> _db_table() ),
+							    &__get_db_field_name( $_ ) ) } @pk;
+				$rv = 'DISTINCT ' . join( ", ", @fields );
+			}
+		}
 	}
 
 	return $rv;
@@ -279,7 +291,7 @@ sub __form_sql_func_sql
 		@tables_to_select_from = @{ $t };
 	}
 	assert( my $func = $args{ '_func' } );
-	my $dbf = $self -> __default_db_field_name_for_func( $func );
+	my $dbf = $self -> __default_db_field_name_for_func( %args );
 
 	if( my $attrname = $args{ '_attr' } )
 	{
