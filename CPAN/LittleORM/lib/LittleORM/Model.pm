@@ -1,8 +1,12 @@
-use LittleORM::Db;
-use LittleORM::Db::Field;
+#!/usr/bin/perl
+
+use strict;
+
+use LittleORM::Db ();
+use LittleORM::Db::Field ();
+
 
 package LittleORM::Model;
-
 use Moose;
 use Moose::Util::TypeConstraints;
 
@@ -186,15 +190,19 @@ sub get_many
 
 }
 
-sub count
+sub _sql_func_on_attr
 {
 	my $self = shift;
+	my $func = shift;
+	my $attr = shift;
+
 	my @args = @_;
 	my %args = @args;
 
 	my $outcome = 0;
-	my $sql = $self -> __form_count_sql( @args );
-
+	my $sql = $self -> __form_sql_func_sql( _func => $func,
+						_attr => $attr,
+						@args );
 	if( $args{ '_debug' } )
 	{
 		return $sql;
@@ -202,10 +210,135 @@ sub count
 
 	my $r = &LittleORM::Db::getrow( $sql, $self -> __get_dbh( @args ) );
 
-	$outcome = $r -> { 'count' };
+	$outcome = $r -> { $func };
 
 	return $outcome;
 }
+
+sub max
+{
+	my $self = shift;
+
+	assert( my $attrname = $_[ 0 ] );
+
+	my $rv = $self -> _sql_func_on_attr( 'max', @_ );
+
+	assert( my $attr = $self -> meta() -> find_attribute_by_name( $attrname ) );
+
+	if( my $coerce_from = &__descr_attr( $attr, 'coerce_from' ) )
+	{
+		$rv = $coerce_from -> ( $rv );
+	}
+
+	return $rv;
+
+}
+
+sub min
+{
+	my $self = shift;
+
+	assert( my $attrname = $_[ 0 ] );
+
+	my $rv = $self -> _sql_func_on_attr( 'min', @_ );
+
+	assert( my $attr = $self -> meta() -> find_attribute_by_name( $attrname ) );
+
+	if( my $coerce_from = &__descr_attr( $attr, 'coerce_from' ) )
+	{
+		$rv = $coerce_from -> ( $rv );
+	}
+
+	return $rv;
+
+}
+
+sub __default_db_field_name_for_func
+{
+	my ( $self, %args ) = @_;
+
+	my $rv = '';
+	assert( my $func = $args{ '_func' } );
+
+	if( $func eq 'count' )
+	{
+		$rv = '*';
+		if( $args{ '_distinct' } )
+		{
+			if( my @pk = $self -> __find_primary_keys() )
+			{
+				assert( scalar @pk == 1, "count of distinct is not yet supported for multiple PK models" );
+				my @fields = map { sprintf( "%s.%s",
+							    ( $args{ '_table_alias' } or $self -> _db_table() ),
+							    &__get_db_field_name( $_ ) ) } @pk;
+				$rv = 'DISTINCT ' . join( ", ", @fields );
+			}
+		}
+	}
+
+	return $rv;
+}
+
+sub __form_sql_func_sql
+{
+	my $self = shift;
+
+	my @args = @_;
+	my %args = @args;
+
+	my @where_args = $self -> __form_where( @args );
+
+	my @tables_to_select_from = ( $self -> _db_table() );
+
+	if( my $t = $args{ '_tables_to_select_from' } )
+	{
+		@tables_to_select_from = @{ $t };
+	}
+	assert( my $func = $args{ '_func' } );
+	my $dbf = $self -> __default_db_field_name_for_func( %args );
+
+	if( my $attrname = $args{ '_attr' } )
+	{
+		assert( my $attr = $self -> meta() -> find_attribute_by_name( $attrname ) );
+		$dbf = &__get_db_field_name( $attr );
+	}
+
+	my $sql = sprintf( "SELECT %s(%s) FROM %s WHERE %s", 
+			   $func,
+			   $dbf,
+			   join( ',', @tables_to_select_from ), 
+			   join( ' ' . ( $args{ '_logic' } or 'AND' ) . ' ', @where_args ) );
+
+	return $sql;
+}
+
+sub count
+{
+	my $self = shift;
+	return $self -> _sql_func_on_attr( 'count', '', @_ );
+
+}
+
+# sub count
+# {
+# 	my $self = shift;
+# 	my @args = @_;
+# 	my %args = @args;
+
+# 	my $outcome = 0;
+# 	my $sql = $self -> __form_count_sql( @args );
+
+# 	if( $args{ '_debug' } )
+# 	{
+# 		return $sql;
+# 	}
+
+# 	my $r = &LittleORM::Db::getrow( $sql, $self -> __get_dbh( @args ) );
+
+# 	$outcome = $r -> { 'count' };
+
+# 	return $outcome;
+# }
 
 sub create
 {
@@ -768,28 +901,28 @@ sub __form_get_sql
 	return $sql;
 }
 
-sub __form_count_sql
-{
-	my $self = shift;
+# sub __form_count_sql
+# {
+# 	my $self = shift;
 
-	my @args = @_;
-	my %args = @args;
+# 	my @args = @_;
+# 	my %args = @args;
 
-	my @where_args = $self -> __form_where( @args );
+# 	my @where_args = $self -> __form_where( @args );
 
-	my @tables_to_select_from = ( $self -> _db_table() );
+# 	my @tables_to_select_from = ( $self -> _db_table() );
 
-	if( my $t = $args{ '_tables_to_select_from' } )
-	{
-		@tables_to_select_from = @{ $t };
-	}
+# 	if( my $t = $args{ '_tables_to_select_from' } )
+# 	{
+# 		@tables_to_select_from = @{ $t };
+# 	}
 
-	my $sql = sprintf( "SELECT count(*) FROM %s WHERE %s", 
-			   join( ',', @tables_to_select_from ), 
-			   join( ' ' . ( $args{ '_logic' } or 'AND' ) . ' ', @where_args ) );
+# 	my $sql = sprintf( "SELECT count(*) FROM %s WHERE %s", 
+# 			   join( ',', @tables_to_select_from ), 
+# 			   join( ' ' . ( $args{ '_logic' } or 'AND' ) . ' ', @where_args ) );
 
-	return $sql;
-}
+# 	return $sql;
+# }
 
 sub __form_additional_sql
 {

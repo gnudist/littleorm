@@ -4,18 +4,17 @@ use 5.006;
 use strict;
 use warnings FATAL => 'all';
 
+our $VERSION = '0.06';
+
 =head1 NAME
 
 LittleORM - ORM for Perl with Moose.
 
 =head1 VERSION
 
-Version 0.05
+Version 0.06
 
 =cut
-
-our $VERSION = '0.05';
-
 
 =head1 SYNOPSIS
 
@@ -29,12 +28,11 @@ Eugene Kuzin, C<< <eugenek at 45-98.org> >>, JID: C<< <gnudist at jabber.ru> >>
 
 =head1 BUGS
 
-Please report any bugs or feature requests to C<bug-littleorm at rt.cpan.org>, or through
-the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=LittleORM>.  I will be notified, and then you'll
-automatically be notified of progress on your bug as I make changes.
-
-
-
+Please report any bugs or feature requests to C<bug-littleorm at
+rt.cpan.org>, or through the web interface at
+L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=LittleORM>.  I will
+be notified, and then you'll automatically be notified of progress on
+your bug as I make changes.
 
 =head1 SUPPORT
 
