@@ -125,6 +125,16 @@ sub filter
 		{
 			assert( 0, '_sortby is not allowed in filter' );
 
+		} elsif( $arg eq '_exists' )
+		{
+			assert( $val and $val -> isa( 'ORM::Filter' ) );
+			$rv -> connect_filter_exists( $val );
+
+		} elsif( $arg eq '_not_exists' )
+		{
+			assert( $val and $val -> isa( 'ORM::Filter' ) );
+			$rv -> connect_filter_not_exists( $val );
+
 		} elsif( blessed( $val ) and $val -> isa( 'ORM::Filter' ) )
 		{
 
@@ -147,7 +157,6 @@ sub filter
 
 		$rv -> push_clause( $clause );
 	}
-
 
 	return $rv;
 }
@@ -179,26 +188,9 @@ use List::MoreUtils 'uniq';
 
 }
 
-sub connect_filter
+sub form_conn_sql
 {
 	my ( $self, $arg, $filter ) = @_;
-
-	unless( $filter )
-	{
-		if( $arg and $arg -> isa( 'ORM::Filter' ) )
-		{
-			my $args = $self -> model() -> _disambiguate_filter_args( [ $arg ] );
-
-			( $arg, $filter ) = @{ $args };
-
-
-		} else
-		{
-			assert( 0, 'check args sanity' );
-		}
-	}
-
-	map { $self -> push_clause( $_, $filter -> table_alias() ) } @{ $filter -> clauses() };
 
 	my $conn_sql = '';
 
@@ -211,7 +203,9 @@ sub connect_filter
 
 		if( my $fk = &ORM::Model::__descr_attr( $attr1, 'foreign_key' ) )
 		{
-			if( ( $fk eq $filter -> model() ) and ( my $fkattr = &ORM::Model::__descr_attr( $attr1, 'foreign_key_attr_name' ) ) )
+			if( ( $fk eq $filter -> model() ) 
+			    and
+			    ( my $fkattr = &ORM::Model::__descr_attr( $attr1, 'foreign_key_attr_name' ) ) )
 			{
 				assert( $attr2 = $filter -> model() -> meta() -> find_attribute_by_name( $fkattr ),
 					'Injalid attribute 2 in filter (subcase of much rarer case)' );
@@ -236,9 +230,126 @@ sub connect_filter
 				     $cast );
 	}
 
-	$self -> push_clause( $self -> model() -> clause( cond => [ _where => $conn_sql ],
-							  table_alias => $self -> table_alias() ) );
+	return $conn_sql;
 
+}
+
+sub connect_filter
+{
+	my $self = shift;
+
+	my ( $arg, $filter ) = $self -> sanitize_args_for_connecting( @_ );
+
+	map { $self -> push_clause( $_, $filter -> table_alias() ) } @{ $filter -> clauses() };
+
+	my $conn_sql = $self -> form_conn_sql( $arg, $filter );
+
+	{
+		my $c1 = $self -> model() -> clause( cond => [ _where => $conn_sql ],
+						     table_alias => $self -> table_alias() );
+
+
+		$self -> push_clause( $c1 );
+	}
+}
+
+
+sub sanitize_args_for_connecting
+{
+	my ( $self, $arg, $filter ) = @_;
+
+	unless( $filter )
+	{
+		if( $arg and $arg -> isa( 'ORM::Filter' ) )
+		{
+			my $args = $self -> model() -> _disambiguate_filter_args( [ $arg ] );
+
+			( $arg, $filter ) = @{ $args };
+
+
+		} else
+		{
+			assert( 0, 'check args sanity' );
+		}
+	}
+
+	return ( $arg, $filter );
+
+}
+
+
+sub connect_filter_exists
+{
+	my $self = shift;
+
+	my ( $arg, $filter ) = $self -> sanitize_args_for_connecting( @_ );
+
+	my $exf = ORM::Filter -> new( model => $filter -> model(),
+				      table_alias => $filter -> table_alias() );
+	
+	map { $exf -> push_clause( $_, $filter -> table_alias() ) } @{ $filter -> clauses() };
+	
+	my $conn_sql = $self -> form_conn_sql( $arg, $filter );
+
+	{
+		my $c1 = $self -> model() -> clause( cond => [ _where => $conn_sql ],
+						     table_alias => $self -> table_alias() );
+
+
+		$exf -> push_clause( $c1 );
+	}
+
+	{
+		my $sql = sprintf( " EXISTS (SELECT 1 FROM %s %s WHERE %s LIMIT 1) ",
+				   $exf -> model() -> _db_table(),
+				   $exf -> table_alias(),
+				   join( ' AND ', $exf -> translate_into_sql_clauses() ) );
+		
+		my $c1 = $self -> model() -> clause( cond => [ _where => $sql ],
+						     table_alias => $self -> table_alias() );
+		
+		
+		$self -> push_clause( $c1 );
+	}
+	
+	return 0;
+}
+
+sub connect_filter_not_exists
+{
+	my $self = shift;
+
+	my ( $arg, $filter ) = $self -> sanitize_args_for_connecting( @_ );
+
+	my $exf = ORM::Filter -> new( model => $filter -> model(),
+				      table_alias => $filter -> table_alias() );
+	
+	map { $exf -> push_clause( $_, $filter -> table_alias() ) } @{ $filter -> clauses() };
+	
+	my $conn_sql = $self -> form_conn_sql( $arg, $filter );
+
+	{
+		my $c1 = $self -> model() -> clause( cond => [ _where => $conn_sql ],
+						     table_alias => $self -> table_alias() );
+
+
+		$exf -> push_clause( $c1 );
+	}
+
+	{
+		my $sql = sprintf( " NOT EXISTS (SELECT 1 FROM %s %s WHERE %s LIMIT 1) ",
+				   $exf -> model() -> _db_table(),
+				   $exf -> table_alias(),
+				   join( ' AND ', $exf -> translate_into_sql_clauses() ) );
+		
+		my $c1 = $self -> model() -> clause( cond => [ _where => $sql ],
+						     table_alias => $self -> table_alias() );
+		
+		
+		$self -> push_clause( $c1 );
+	}
+	
+	return 0;
 }
 
 sub push_clause
