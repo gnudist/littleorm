@@ -130,12 +130,12 @@ sub filter
 			assert( $val and ( ( ref( $val ) eq 'HASH' )
 					   or
 					   $val -> isa( 'ORM::Filter' ) ) );
-			$rv -> connect_filter_exists( $val );
+			$rv -> connect_filter_exists( 'EXISTS', $val );
 
 		} elsif( $arg eq '_not_exists' )
 		{
 			assert( $val and $val -> isa( 'ORM::Filter' ) );
-			$rv -> connect_filter_not_exists( $val );
+			$rv -> connect_filter_exists( 'NOT EXISTS', $val );
 
 		} elsif( blessed( $val ) and $val -> isa( 'ORM::Filter' ) )
 		{
@@ -293,6 +293,7 @@ sub sanitize_args_for_connecting
 sub connect_filter_exists
 {
 	my $self = shift;
+	my $exists_keyword = shift;
 
 	my ( $arg, $filter ) = $self -> sanitize_args_for_connecting( @_ );
 
@@ -327,7 +328,8 @@ sub connect_filter_exists
 
 		}
 
-		my $sql = sprintf( " EXISTS (SELECT 1 FROM %s WHERE %s LIMIT 1) ",
+		my $sql = sprintf( " %s (SELECT 1 FROM %s WHERE %s LIMIT 1) ",
+				   $exists_keyword,
 				   $select_from_sql_part,
 				   join( ' AND ', $exf -> translate_into_sql_clauses() ) );
 		
