@@ -82,17 +82,30 @@ sub __has_field_no_check
 
 	my $attr = undef;
 
-	$attr = $meta -> add_attribute( $name, %args, is => 'rw', lazy => 1, default => sub
+	unless( $args{ 'description' } -> { 'ignore' } )
 	{
-		my $self = shift;
+		$args{ 'is' }   = 'rw';
+		$args{ 'lazy' } = 1;
 
-		if( $attr -> isa( 'Moose::Meta::Role::Attribute' ) )
+		foreach my $key ( 'builder', 'default' )
 		{
-			$attr = $self -> meta() -> find_attribute_by_name( $name );
+			assert( not( exists $args{ $key } ), sprintf( 'There is a problem with attribute "%s": you should not use "%s" in LittleORM attribute. Consider using "description => { coerce_from => sub{ ... } }" instead, or just add "description => { ignore => 1 }".', $name, $key ) );
 		}
 
-		return $self -> __lazy_build_value( $attr );
-	} );
+		$args{ 'default' } = sub 
+		{
+			my $self = shift;
+
+			if( $attr -> isa( 'Moose::Meta::Role::Attribute' ) )
+			{
+				$attr = $self -> meta() -> find_attribute_by_name( $name );
+			}
+
+			return $self -> __lazy_build_value( $attr );
+		};
+	}
+
+	$attr = $meta -> add_attribute( $name, %args );
 
 	Scalar::Util::weaken( $attr );
 
@@ -104,3 +117,4 @@ no Moose::Exporter;
 no Moose;
 
 -1;
+
