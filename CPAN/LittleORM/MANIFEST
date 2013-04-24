@@ -5,6 +5,7 @@ lib/LittleORM/GenericID.pm
 lib/LittleORM/Filter.pm
 lib/LittleORM/Tutorial.pm
 lib/LittleORM/Db.pm
+lib/LittleORM/Role.pm
 lib/LittleORM/Model.pm
 lib/LittleORM/Clause.pm
 lib/LittleORM/Db/Field.pm
