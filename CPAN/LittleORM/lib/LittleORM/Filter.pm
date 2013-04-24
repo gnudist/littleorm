@@ -125,6 +125,18 @@ sub filter
 		{
 			assert( 0, '_sortby is not allowed in filter' );
 
+		} elsif( $arg eq '_exists' )
+		{
+			assert( $val and ( ( ref( $val ) eq 'HASH' )
+					   or
+					   $val -> isa( 'LittleORM::Filter' ) ) );
+			$rv -> connect_filter_exists( 'EXISTS', $val );
+
+		} elsif( $arg eq '_not_exists' )
+		{
+			assert( $val and $val -> isa( 'LittleORM::Filter' ) );
+			$rv -> connect_filter_exists( 'NOT EXISTS', $val );
+
 		} elsif( blessed( $val ) and $val -> isa( 'LittleORM::Filter' ) )
 		{
 
@@ -147,7 +159,6 @@ sub filter
 
 		$rv -> push_clause( $clause );
 	}
-
 
 	return $rv;
 }
@@ -179,26 +190,9 @@ use List::MoreUtils 'uniq';
 
 }
 
-sub connect_filter
+sub form_conn_sql
 {
 	my ( $self, $arg, $filter ) = @_;
-
-	unless( $filter )
-	{
-		if( $arg and $arg -> isa( 'LittleORM::Filter' ) )
-		{
-			my $args = $self -> model() -> _disambiguate_filter_args( [ $arg ] );
-
-			( $arg, $filter ) = @{ $args };
-
-
-		} else
-		{
-			assert( 0, 'check args sanity' );
-		}
-	}
-
-	map { $self -> push_clause( $_, $filter -> table_alias() ) } @{ $filter -> clauses() };
 
 	my $conn_sql = '';
 
@@ -211,7 +205,9 @@ sub connect_filter
 
 		if( my $fk = &LittleORM::Model::__descr_attr( $attr1, 'foreign_key' ) )
 		{
-			if( ( $fk eq $filter -> model() ) and ( my $fkattr = &LittleORM::Model::__descr_attr( $attr1, 'foreign_key_attr_name' ) ) )
+			if( ( $fk eq $filter -> model() ) 
+			    and
+			    ( my $fkattr = &LittleORM::Model::__descr_attr( $attr1, 'foreign_key_attr_name' ) ) )
 			{
 				assert( $attr2 = $filter -> model() -> meta() -> find_attribute_by_name( $fkattr ),
 					'Injalid attribute 2 in filter (subcase of much rarer case)' );
@@ -236,9 +232,111 @@ sub connect_filter
 				     $cast );
 	}
 
-	$self -> push_clause( $self -> model() -> clause( cond => [ _where => $conn_sql ],
-							  table_alias => $self -> table_alias() ) );
+	return $conn_sql;
 
+}
+
+sub connect_filter
+{
+	my $self = shift;
+
+	my ( $arg, $filter ) = $self -> sanitize_args_for_connecting( @_ );
+
+	map { $self -> push_clause( $_, $filter -> table_alias() ) } @{ $filter -> clauses() };
+
+	my $conn_sql = $self -> form_conn_sql( $arg, $filter );
+
+	{
+		my $c1 = $self -> model() -> clause( cond => [ _where => $conn_sql ],
+						     table_alias => $self -> table_alias() );
+
+
+		$self -> push_clause( $c1 );
+	}
+}
+
+
+sub sanitize_args_for_connecting
+{
+	my ( $self, $arg, $filter ) = @_;
+
+	unless( $filter )
+	{
+		if( ref( $arg ) eq 'HASH' )
+		{
+			assert( scalar keys %{ $arg } == 1 );
+			( $arg, $filter ) = %{ $arg };
+		}
+	}
+
+	unless( $filter )
+	{
+
+		if( $arg and blessed( $arg ) and $arg -> isa( 'LittleORM::Filter' ) )
+		{
+			my $args = $self -> model() -> _disambiguate_filter_args( [ $arg ] );
+
+			( $arg, $filter ) = @{ $args };
+
+
+		} else
+		{
+			assert( 0, 'check args sanity' );
+		}
+	}
+
+	return ( $arg, $filter );
+
+}
+
+
+sub connect_filter_exists
+{
+	my $self = shift;
+	my $exists_keyword = shift;
+
+	my ( $arg, $filter ) = $self -> sanitize_args_for_connecting( @_ );
+
+	my $exf = LittleORM::Filter -> new( model => $filter -> model(),
+				      table_alias => $filter -> table_alias() );
+	
+
+	map { $exf -> push_clause( $_, $filter -> table_alias() ) } @{ $filter -> clauses() };
+	
+	my $conn_sql = $self -> form_conn_sql( $arg, $filter );
+
+	{
+		my $c1 = $self -> model() -> clause( cond => [ _where => $conn_sql ],
+						     table_alias => $self -> table_alias() );
+
+
+		$exf -> push_clause( $c1 );
+	}
+
+	{
+
+		my %select_from_sql_part = $exf -> all_tables_used_in_filter();
+
+		# {
+		# 	my %t = $exf -> all_tables_used_in_filter();
+		# 	# do not include outer table inside EXISTS select:
+
+		# 	%select_from_sql_part = map { $_ => $t{ $_ } } grep { $_ ne $self -> table_alias() } keys %t;
+		# }
+
+		my $sql = sprintf( " %s (SELECT 1 FROM [__ORM_USED_TABLES__] WHERE %s LIMIT 1) ",
+				   $exists_keyword,
+				   join( ' AND ', $exf -> translate_into_sql_clauses() ) );
+		
+		my $c1 = $self -> model() -> clause( cond => [ _where => $sql ],
+						     included_tables => \%select_from_sql_part,
+						     table_alias => $self -> table_alias() );
+		
+		
+		$self -> push_clause( $c1 );
+	}
+	
+	return 0;
 }
 
 sub push_clause
@@ -318,14 +416,19 @@ sub translate_into_sql_clauses
 	my $clauses_number = scalar @{ $self -> clauses() };
 
 	my @all_clauses_together = ();
+	my %all = $self -> all_tables_used_in_filter();
 
 	for( my $i = 0; $i < $clauses_number; $i ++ )
 	{
 		my $clause = $self -> clauses() -> [ $i ];
 
-		push @all_clauses_together, $clause -> sql( @args );
+		push @all_clauses_together, $clause -> sql( @args,
+							    _already_used => \%all );
 
 	}
+
+	# print Carp::longmess();
+	# print Data::Dumper::Dumper( \@all_clauses_together );
 
 	return @all_clauses_together;
 }

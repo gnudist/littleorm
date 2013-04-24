@@ -1,12 +1,8 @@
-#!/usr/bin/perl
-
-use strict;
-
-use LittleORM::Db ();
-use LittleORM::Db::Field ();
-
+use LittleORM::Db;
+use LittleORM::Db::Field;
 
 package LittleORM::Model;
+
 use Moose;
 use Moose::Util::TypeConstraints;
 
