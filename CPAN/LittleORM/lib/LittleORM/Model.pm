@@ -1111,9 +1111,9 @@ fhFwaEknUtY5xwNr:
 						      $dbh );
 			} else
 			{
-				$op = 'IN';
-				$val = sprintf( '(%s)', join( ',', map { &LittleORM::Db::dbq( &__prep_value_for_db( $class_attr, $_ ),
-											$dbh ) } @{ $val } ) );
+				my @values = map { &__prep_value_for_db( $class_attr, $_ ) } @{ $val };
+				$val = sprintf( 'ANY(%s)', &ORM::Db::dbq( \@values, $dbh ) );
+
 			}
 
 		} else
