@@ -564,6 +564,12 @@ sub BUILD
 {
 	my $self = shift;
 
+	if( $self -> meta() -> can( 'found_orm' ) and $self -> meta() -> found_orm() )
+	{
+		return;
+	}
+
+
 FXOINoqUOvIG1kAG:
 	foreach my $attr ( $self -> meta() -> get_all_attributes() )
 	{
@@ -1111,6 +1117,9 @@ fhFwaEknUtY5xwNr:
 						      $dbh );
 			} else
 			{
+				# $op = 'IN';
+				# $val = sprintf( '(%s)', join( ',', map { &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $_ ),
+				# 							$dbh ) } @{ $val } ) );
 
 				my @values = map { &__prep_value_for_db( $class_attr, $_ ) } @{ $val };
 				$val = sprintf( 'ANY(%s)', &ORM::Db::dbq( \@values, $dbh ) );

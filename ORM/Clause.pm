@@ -27,9 +27,6 @@ has 'logic' => ( is => 'rw', isa => 'Str', default => 'AND' );
 has 'model' => ( is => 'rw', isa => 'Str', required => 1 );
 has 'table_alias' => ( is => 'rw', isa => 'Maybe[Str]' );
 has 'cond' => ( is => 'rw', isa => 'ArrayRef', default => sub { [] } );
-has 'included_tables' => ( is => 'rw', isa => 'HashRef', default => sub { {} } );
-
-use Carp::Assert 'assert';
 
 sub sql
 {
@@ -68,21 +65,9 @@ sub gen_clauses
 		{
 			my $value = shift @c;
 
-			my @call_args = ( @args,
-					  $item => $value,
-					  _table_alias => $self -> table_alias() );
-
-			my @where_part = $self -> model() -> __form_where( @call_args );
-
-			if( $item eq '_where' )
-			{
-				@where_part = $self -> apply_internal_sql_text_replaces( \@where_part, \@args );
-			}
-
-			# print Data::Dumper::Dumper( \@call_args );
-			# print Data::Dumper::Dumper( \@where_part );
-
-			push @rv, @where_part;
+			push @rv, $self -> model() -> __form_where( @args,
+								    $item => $value,
+								    _table_alias => $self -> table_alias() );
 
 		}
 	}
@@ -94,36 +79,6 @@ sub gen_clauses
 
 	return @rv;
 
-}
-
-sub apply_internal_sql_text_replaces
-{
-	my $self = shift;
-
-	my ( $where_part, $args ) = @_;
-
-	my @where_part = @{ $where_part };
-	my %args = @{ $args };
-
-	# actually lets be specific:
-	assert( $where_part[ 0 ] );
-	assert( scalar @where_part == 1 );
-
-	if( my %t = %{ $self -> included_tables() } )
-	{
-		if( my $already = $args{ '_already_used' } )
-		{
-			map { delete $t{ $_ } } keys %{ $already };
-		}
-
-		my %replaces = ( '[__ORM_USED_TABLES__]' => join( ",", map { $t{ $_ } . " " . $_ } keys %t ) );
-		while( my ( $k, $v ) = each %replaces )
-		{
-			$where_part[ 0 ] =~ s/\Q$k\E/$v/g;
-		}
-	}
-
-	return @where_part;
 }
 
 

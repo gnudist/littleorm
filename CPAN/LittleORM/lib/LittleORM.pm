@@ -4,7 +4,7 @@ use 5.006;
 use strict;
 use warnings FATAL => 'all';
 
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 
 =head1 NAME
 
@@ -12,7 +12,7 @@ LittleORM - ORM for Perl with Moose.
 
 =head1 VERSION
 
-Version 0.07
+Version 0.08
 
 =cut
 
@@ -25,6 +25,9 @@ Please refer to L<LittleORM::Tutorial> for thorough description of LittleORM.
 =head1 AUTHOR
 
 Eugene Kuzin, C<< <eugenek at 45-98.org> >>, JID: C<< <gnudist at jabber.ru> >>
+with significant contributions by
+Kain Winterheart, C<< < kain.winterheart at gmail.com> >>
+
 
 =head1 BUGS
 

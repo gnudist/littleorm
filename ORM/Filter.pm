@@ -315,21 +315,25 @@ sub connect_filter_exists
 
 	{
 
-		my %select_from_sql_part = $exf -> all_tables_used_in_filter();
+		my $select_from_sql_part = '';
 
-		# {
-		# 	my %t = $exf -> all_tables_used_in_filter();
-		# 	# do not include outer table inside EXISTS select:
+		{
+			my %t = $exf -> all_tables_used_in_filter();
+			# do not include outer table inside EXISTS select:
+			$select_from_sql_part = join( ',', map { $t{ $_ } .
+								 " " .
+								 $_ }
+						           grep { $_ ne $self -> table_alias() }
+						           keys %t );
 
-		# 	%select_from_sql_part = map { $_ => $t{ $_ } } grep { $_ ne $self -> table_alias() } keys %t;
-		# }
+		}
 
-		my $sql = sprintf( " %s (SELECT 1 FROM [__ORM_USED_TABLES__] WHERE %s LIMIT 1) ",
+		my $sql = sprintf( " %s (SELECT 1 FROM %s WHERE %s LIMIT 1) ",
 				   $exists_keyword,
+				   $select_from_sql_part,
 				   join( ' AND ', $exf -> translate_into_sql_clauses() ) );
 		
 		my $c1 = $self -> model() -> clause( cond => [ _where => $sql ],
-						     included_tables => \%select_from_sql_part,
 						     table_alias => $self -> table_alias() );
 		
 		
@@ -416,19 +420,14 @@ sub translate_into_sql_clauses
 	my $clauses_number = scalar @{ $self -> clauses() };
 
 	my @all_clauses_together = ();
-	my %all = $self -> all_tables_used_in_filter();
 
 	for( my $i = 0; $i < $clauses_number; $i ++ )
 	{
 		my $clause = $self -> clauses() -> [ $i ];
 
-		push @all_clauses_together, $clause -> sql( @args,
-							    _already_used => \%all );
+		push @all_clauses_together, $clause -> sql( @args );
 
 	}
-
-	# print Carp::longmess();
-	# print Data::Dumper::Dumper( \@all_clauses_together );
 
 	return @all_clauses_together;
 }
