@@ -162,15 +162,12 @@ sub get_many
 	my %args = @args;
 	my @outcome = ();
 
-
 	my $sql = $self -> __form_get_sql( @args );
-
 
 	if( $args{ '_debug' } )
 	{
 		return $sql;
 	}
-
 
 	my $sth = &ORM::Db::prep( $sql, $self -> __get_dbh( @args ) );
 	$sth -> execute();
@@ -183,7 +180,6 @@ sub get_many
 	$sth -> finish();
 
 	return @outcome;
-
 }
 
 sub _sql_func_on_attr
@@ -204,9 +200,42 @@ sub _sql_func_on_attr
 		return $sql;
 	}
 
-	my $r = &ORM::Db::getrow( $sql, $self -> __get_dbh( @args ) );
+	# my $r = &ORM::Db::getrow( $sql, $self -> __get_dbh( @args ) );
+	# $outcome = $r -> { $func };
 
-	$outcome = $r -> { $func };
+	my $sth = &ORM::Db::prep( $sql, $self -> __get_dbh( @args ) );
+	$sth -> execute();
+	my $rows = $sth -> rows();
+	if( $rows == 1 )
+	{
+		$outcome = $sth -> fetchrow_hashref() -> { $func };
+
+	} elsif( $rows > 1 )
+	{
+		$outcome = [];
+
+		while( my $data = $sth -> fetchrow_hashref() )
+		{
+			my $set = ORM::DataSet -> new();
+			while( my ( $k, $v ) = each %{ $data } )
+			{
+				my $field = ORM::DataSet::Field -> new( model => ( ref( $self ) or $self ),
+									dbfield => $k,
+									value => $v );
+				$set -> add_to_set( $field );
+			}
+			push @{ $outcome }, $set;
+		}
+
+	} else
+	{
+		assert( 0,
+			sprintf( "Got '%s' for '%s'",
+				 $rows,
+				 $sql ) );
+	}
+
+	$sth -> finish();
 
 	return $outcome;
 }
@@ -299,14 +328,60 @@ sub __form_sql_func_sql
 		$dbf = &__get_db_field_name( $attr );
 	}
 
-	my $sql = sprintf( "SELECT %s(%s) FROM %s WHERE %s", 
+	my $sql = sprintf( "SELECT %s%s(%s) FROM %s WHERE %s",
+			   $self -> __form_sql_func_sql_more_fields( @args ),
 			   $func,
 			   $dbf,
 			   join( ',', @tables_to_select_from ), 
 			   join( ' ' . ( $args{ '_logic' } or 'AND' ) . ' ', @where_args ) );
 
+	$sql .= $self -> __form_additional_sql( @args );
+	#$sql .= $self -> __form_sql_func_sql_extras( @args );
+
 	return $sql;
 }
+
+sub __form_sql_func_sql_more_fields
+{
+	my $self = shift;
+	
+	my @args = @_;
+	my %args = @args;
+	my $rv = '';
+	
+	if( my $t = $args{ '_groupby' } )
+	{
+
+		$rv .= join( ',', map { sprintf( "%s.%s",
+						 ( $args{ '_table_alias' }
+						   or
+						   $self -> _db_table() ),
+						 &__get_db_field_name( $self -> meta() -> find_attribute_by_name( $_ ) ) ) } @{ $t } );
+		$rv .= ',';
+
+	}
+
+
+	return $rv;
+}
+
+# sub __form_sql_func_sql_extras
+# {
+# 	my $self = shift;
+
+# 	my @args = @_;
+# 	my %args = @args;
+
+# 	assert( my $func = $args{ '_func' } );
+# 	my $rv = '';
+
+# 	if( ( $func eq 'count' ) and ( my $t = $args{ '_groupby' } ) )
+# 	{
+# 		$rv = $self -> __form_additional_sql_groupby( @args );
+# 	}
+
+# 	return $rv;
+# }
 
 sub count
 {
@@ -314,27 +389,6 @@ sub count
 	return $self -> _sql_func_on_attr( 'count', '', @_ );
 
 }
-
-# sub count
-# {
-# 	my $self = shift;
-# 	my @args = @_;
-# 	my %args = @args;
-
-# 	my $outcome = 0;
-# 	my $sql = $self -> __form_count_sql( @args );
-
-# 	if( $args{ '_debug' } )
-# 	{
-# 		return $sql;
-# 	}
-
-# 	my $r = &ORM::Db::getrow( $sql, $self -> __get_dbh( @args ) );
-
-# 	$outcome = $r -> { 'count' };
-
-# 	return $outcome;
-# }
 
 sub create
 {
@@ -390,6 +444,26 @@ sub create
 	}
 
 	assert( 0, sprintf( "%s: %s", $sql, &ORM::Db::errstr( $self -> __get_dbh( @args ) ) ) );
+}
+
+sub __find_attr_by_its_db_field_name
+{
+	my ( $self, $db_field_name ) = @_;
+
+	my $rv = undef;
+
+pgmxcobWi7lULIJW:
+	foreach my $attr ( $self -> meta() -> get_all_attributes() )
+	{
+		if( &__get_db_field_name( $attr ) eq $db_field_name )
+		{
+			$rv = $attr;
+			last pgmxcobWi7lULIJW;
+		}
+	}
+
+	return $rv;
+
 }
 
 sub update
@@ -830,8 +904,18 @@ sub __form_delete_sql
 sub __collect_field_names
 {
 	my $self = shift;
+	my %args = @_;
 
 	my @rv = ();
+
+	my $groupby = undef;
+
+	if( my $t = $args{ '_groupby' } )
+	{
+		my %t = map { $_ => 1 } @{ $t };
+		$groupby = \%t;
+	}
+
 
 QGVfwMGQEd15mtsn:
 	foreach my $attr ( $self -> meta() -> get_all_attributes() )
@@ -849,7 +933,19 @@ QGVfwMGQEd15mtsn:
 			next QGVfwMGQEd15mtsn;
 		}
 
-		push @rv, &__get_db_field_name( $attr );
+		if( $groupby )
+		{
+			if( exists $groupby -> { $aname } )
+			{
+				push @rv, &__get_db_field_name( $attr );
+			}
+
+		} else
+		{
+
+			push @rv, &__get_db_field_name( $attr );
+			
+		}
 		
 	}
 
@@ -865,7 +961,7 @@ sub __form_get_sql
 
 	my @where_args = $self -> __form_where( @args );
 
-	my @fields_names = $self -> __collect_field_names();
+	my @fields_names = $self -> __collect_field_names( @args );
 
 	my @tables_to_select_from = ( $self -> _db_table() );
 
@@ -935,6 +1031,8 @@ sub __form_additional_sql
 
 	my $sql = '';
 
+	$sql .= $self -> __form_additional_sql_groupby( @args );
+
 	if( my $t = $args{ '_sortby' } )
 	{
 		if( ref( $t ) eq 'HASH' )
@@ -950,9 +1048,15 @@ sub __form_additional_sql
 				my $dbf = $k;
 				if( my $t = $self -> meta() -> find_attribute_by_name( $k ) )
 				{
-					$dbf = &__get_db_field_name( $t );
+					$dbf = ( $args{ '_table_alias' }
+						 or
+						 $self -> _db_table() ) .
+						 '.' .
+						 &__get_db_field_name( $t );
 				}
-				push @pairs, sprintf( '%s %s', $dbf, $sort_order );
+				push @pairs, sprintf( '%s %s',
+						      $dbf, 
+						      $sort_order );
 			}
 			$sql .= ' ORDER BY ' . join( ',', @pairs );
 		} elsif(  ref( $t ) eq 'ARRAY' )
@@ -970,12 +1074,18 @@ sub __form_additional_sql
 				my $dbf = $k;
 				if( my $t = $self -> meta() -> find_attribute_by_name( $k ) )
 				{
-					$dbf = &__get_db_field_name( $t );
+					$dbf = ( $args{ '_table_alias' }
+						 or
+						 $self -> _db_table() ) . 
+						 '.' .
+						 &__get_db_field_name( $t );
 				}
 
 
 
-				push @pairs, sprintf( '%s %s', ( $dbf or $k ), $sort_order );
+				push @pairs, sprintf( '%s %s',
+						      ( $dbf or $k ),
+						      $sort_order );
 			}
 			$sql .= ' ORDER BY ' . join( ',', @pairs );
 
@@ -989,7 +1099,9 @@ sub __form_additional_sql
 
 			if( my $t1 = $self -> meta() -> find_attribute_by_name( $t ) )
 			{
-				$dbf = &__get_db_field_name( $t1 );
+				$dbf = ( $args{ '_table_alias' }
+					 or
+					 $self -> _db_table() ) . '.' . &__get_db_field_name( $t1 );
 			}
 
 			$sql .= ' ORDER BY ' . $dbf;
@@ -1007,6 +1119,25 @@ sub __form_additional_sql
 	}
 
 	return $sql;
+}
+
+sub __form_additional_sql_groupby
+{
+	my $self = shift;
+	my %args = @_;
+	my $rv = '';
+	if( my $t = $args{ '_groupby' } )
+	{
+		$rv = ' GROUP BY ';
+
+		$rv .= join( ',', map { sprintf( "%s.%s",
+						 ( $args{ '_table_alias' }
+						   or
+						   $self -> _db_table() ),
+						 &__get_db_field_name( $self -> meta() -> find_attribute_by_name( $_ ) ) ) } @{ $t } );
+	}
+
+	return $rv;
 }
 
 sub __form_where
