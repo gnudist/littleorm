@@ -27,6 +27,23 @@ sub AUTOLOAD
 }
 
 
+{
+	my %cache = ();
+
+	sub get_model_instance_for_value_building
+	{
+		my ( $self, $model ) = @_;
+
+		unless( $cache{ $model } )
+		{
+			$cache{ $model } = $model -> new( _rec => {} );
+		}
+
+		return $cache{ $model };
+	}
+
+}
+
 sub field_by_name
 {
 	my ( $self, $name ) = @_;
@@ -45,7 +62,9 @@ sub field_by_name
 			{
 				# say no more!
 				$found = 1;
-				$rv = $f -> model() -> new( _rec => { $f -> dbfield() => $f -> value() } ) -> __lazy_build_value( $attr );
+				my $t = $self -> get_model_instance_for_value_building( $f -> model() );
+				$t -> _rec( { $f -> dbfield() => $f -> value() } );
+				$rv = $t -> __lazy_build_value( $attr );
 			}
 	
 		}
@@ -70,5 +89,8 @@ sub field_by_name
 
 	return $rv;
 }
+
+
+__PACKAGE__ -> meta() -> make_immutable();
 
 4242;
