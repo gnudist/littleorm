@@ -160,7 +160,8 @@ sub create_one_return_value_item
 				foreach my $f ( @{ $fs } )
 				{
 					my $dbfield = $f -> select_as();
-					my $value = $rec -> { $dbfield };
+					my $value = $f -> post_process() -> ( $rec -> { $dbfield } );
+
 					$rv -> add_to_set( { model => $f -> model(),
 							     dbfield => $dbfield,
 							     value => $value } );

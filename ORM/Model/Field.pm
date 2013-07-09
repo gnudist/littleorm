@@ -15,11 +15,20 @@ has 'db_func' => ( is => 'rw',
 
 has 'db_func_tpl' => ( is => 'rw',
 		       isa => 'Str',
-		       default => '%s(%s)' );
+		       default => '%s(%s %s)' );
 
 has 'select_as' => ( is => 'rw',
 		     isa => 'Str',
 		     default => \&get_select_as_field_name );
+
+has 'post_process' => ( is => 'rw',
+			isa => 'CodeRef',
+			default => sub { sub { $_[ 0 ] } } );
+
+
+has '_distinct' => ( is => 'rw',
+		     isa => 'Bool',
+		     default => 0 );
 
 
 use Carp::Assert 'assert';
@@ -53,6 +62,7 @@ sub form_field_name_for_db_select
 	{
 		$rv = sprintf( $self -> db_func_tpl(),
 			       $f,
+			       ( $self -> _distinct() ? ' DISTINCT ' : '' ),
 			       $rv );
 	}
 
