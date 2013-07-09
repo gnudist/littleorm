@@ -159,7 +159,7 @@ sub create_one_return_value_item
 			{
 				foreach my $f ( @{ $fs } )
 				{
-					my $dbfield = $f -> select_as_name();
+					my $dbfield = $f -> select_as();
 					my $value = $rec -> { $dbfield };
 					$rv -> add_to_set( { model => $f -> model(),
 							     dbfield => $dbfield,
@@ -1057,7 +1057,7 @@ QGVfwMGQEd15mtsn:
 									 $self ) );
 
 			}
-			push @rv, $select . ' AS ' . $f -> select_as_name();
+			push @rv, $select . ' AS ' . $f -> select_as();
 		}
 	}
 

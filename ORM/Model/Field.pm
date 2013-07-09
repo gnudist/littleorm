@@ -17,9 +17,9 @@ has 'db_func_tpl' => ( is => 'rw',
 		       isa => 'Str',
 		       default => '%s(%s)' );
 
-has 'select_as_name' => ( is => 'rw',
-			  isa => 'Str',
-			  default => \&get_select_as_field_name );
+has 'select_as' => ( is => 'rw',
+		     isa => 'Str',
+		     default => \&get_select_as_field_name );
 
 
 use Carp::Assert 'assert';
