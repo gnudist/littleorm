@@ -45,17 +45,19 @@ sub field_by_name
 OnR4gMKVoLEq1YDH:
 		foreach my $f ( @{ $self -> fields() } )
 		{
-			my $attr = $f -> { 'model' } -> __find_attr_by_its_db_field_name( $f -> { 'dbfield' } );
-			if( $attr
-			    and
-			    ( $attr -> name() eq $name ) )
+			if( my $m = $f -> { 'model' } )
 			{
+				my $attr = $m -> __find_attr_by_its_db_field_name( $f -> { 'dbfield' } );
+				if( $attr
+				    and
+				    ( $attr -> name() eq $name ) )
+				{
 				# say no more!
-				$found = 1;
-				$rv = $f -> { 'model' } -> __lazy_build_value_actual( $attr, $f -> { 'value' } );
-				last OnR4gMKVoLEq1YDH;
+					$found = 1;
+					$rv = $m -> __lazy_build_value_actual( $attr, $f -> { 'value' } );
+					last OnR4gMKVoLEq1YDH;
+				}
 			}
-	
 		}
 	}
 
