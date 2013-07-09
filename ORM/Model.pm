@@ -116,9 +116,73 @@ sub get
 
 	if( $rec )
 	{
-		$rv = $self -> new( _rec => $rec );
+		$rv = $self -> create_one_return_value_item( $rec, @args );
 	}
 
+	return $rv;
+}
+
+sub borrow_field
+{
+	my $self = shift;
+	my $attrname = shift;
+	my @more = @_;
+
+	my $rv = ORM::Model::Field -> new( model => ( ref( $self ) or $self ),
+					   @more );
+	if( $attrname )
+	{
+		assert( my $attr = $self -> meta() -> find_attribute_by_name( $attrname ) );
+		$rv -> base_attr( $attrname );
+	}
+
+	return $rv;
+
+}
+
+sub create_one_return_value_item
+{
+	my $self = shift;
+	my $rec = shift;
+	my @args = @_;
+	my %args = @args;
+
+	my $rv = undef;
+
+	if( $rec )
+	{
+		if( $args{ '_fieldset' } or $args{ '_groupby' } )
+		{
+			$rv = ORM::DataSet -> new();
+
+			if( my $fs = $args{ '_fieldset' } )
+			{
+				foreach my $f ( @{ $fs } )
+				{
+					my $dbfield = $f -> select_as_name();
+					my $value = $rec -> { $dbfield };
+					$rv -> add_to_set( { model => $f -> model(),
+							     dbfield => $dbfield,
+							     value => $value } );
+				}
+			}
+
+			if( my $grpby = $args{ '_groupby' } )
+			{
+				foreach my $f ( @{ $grpby } )
+				{
+					my $dbfield = &__get_db_field_name( $self -> meta() -> find_attribute_by_name( $f ) );
+					my $value = $rec -> { $dbfield };
+					$rv -> add_to_set( { model => ( ref( $self ) or $self ),
+							     dbfield => $dbfield,
+							     value => $value } );
+				}
+			}
+		} else
+		{
+			$rv = $self -> new( _rec => $rec );
+		}
+	}
 	return $rv;
 }
 
@@ -174,9 +238,13 @@ sub get_many
 
 	while( my $data = $sth -> fetchrow_hashref() )
 	{
-		my $o = $self -> new( _rec => $data );
+
+		my $o = $self -> create_one_return_value_item( $data, @args );#$self -> new( _rec => $data );
 		push @outcome, $o;
+
+
 	}
+
 	$sth -> finish();
 
 	return @outcome;
@@ -206,11 +274,8 @@ sub _sql_func_on_attr
 	my $sth = &ORM::Db::prep( $sql, $self -> __get_dbh( @args ) );
 	$sth -> execute();
 	my $rows = $sth -> rows();
-	if( $rows == 1 )
-	{
-		$outcome = $sth -> fetchrow_hashref() -> { $func };
-
-	} elsif( $rows > 1 )
+	
+	if( $args{ '_groupby' } )
 	{
 		$outcome = [];
 
@@ -232,6 +297,10 @@ sub _sql_func_on_attr
 			}
 			push @{ $outcome }, $set;
 		}
+
+	} elsif( $rows == 1 )
+	{
+		$outcome = $sth -> fetchrow_hashref() -> { $func };
 
 	} else
 	{
@@ -927,13 +996,13 @@ sub __collect_field_names
 	my @rv = ();
 
 	my $groupby = undef;
-
 	if( my $t = $args{ '_groupby' } )
 	{
 		my %t = map { $_ => 1 } @{ $t };
 		$groupby = \%t;
 	}
 
+	my $field_set = $args{ '_fieldset' };
 
 QGVfwMGQEd15mtsn:
 	foreach my $attr ( $self -> meta() -> get_all_attributes() )
@@ -951,20 +1020,45 @@ QGVfwMGQEd15mtsn:
 			next QGVfwMGQEd15mtsn;
 		}
 
+		my $db_fn = ( $args{ '_table_alias' }
+			      or
+			      $self -> _db_table() ) .
+			      '.' .
+			      &__get_db_field_name( $attr );
+
 		if( $groupby )
 		{
 			if( exists $groupby -> { $aname } )
 			{
-				push @rv, &__get_db_field_name( $attr );
+				push @rv, $db_fn;
 			}
 
 		} else
 		{
-
-			push @rv, &__get_db_field_name( $attr );
-			
+			unless( $field_set )
+			{
+				push @rv, $db_fn;
+			}
 		}
-		
+	}
+
+	if( $field_set )
+	{
+		foreach my $f ( @{ $field_set } )
+		{
+			my $select = $f -> form_field_name_for_db_select( $args{ '_table_alias' }
+									  or
+									  $self -> _db_table() );
+
+			if( $f -> model() )
+			{
+				assert( $f -> model() eq $self, sprintf( "Field from another model (%s!=%s) in fieldset",
+									 $f -> model(),
+									 $self ) );
+
+			}
+			push @rv, $select . ' AS ' . $f -> select_as_name();
+		}
 	}
 
 	return @rv;
@@ -1006,9 +1100,7 @@ sub __form_get_sql
 
 	my $sql = sprintf( "SELECT %s %s FROM %s WHERE %s",
 			   $distinct_select,
-			   join( ',', map { ( $args{ '_table_alias' }
-					      or
-					      $self -> _db_table() ) . "." . $_ } @fields_names ),
+			   join( ',', @fields_names ),
 			   join( ',', @tables_to_select_from ), 
 			   join( ' ' . ( $args{ '_logic' } or 'AND' ) . ' ', @where_args ) );
 
