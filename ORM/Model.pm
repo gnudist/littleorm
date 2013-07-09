@@ -219,9 +219,15 @@ sub _sql_func_on_attr
 			my $set = ORM::DataSet -> new();
 			while( my ( $k, $v ) = each %{ $data } )
 			{
-				my $field = ORM::DataSet::Field -> new( model => ( ref( $self ) or $self ),
-									dbfield => $k,
-									value => $v );
+				# my $field = ORM::DataSet::Field -> new( model => ( ref( $self ) or $self ),
+				# 					dbfield => $k,
+				# 					value => $v );
+
+
+				my $field = { 'model' => ( ref( $self ) or $self ),
+					      'dbfield' => $k,
+					      'value' => $v };
+
 				$set -> add_to_set( $field );
 			}
 			push @{ $outcome }, $set;
