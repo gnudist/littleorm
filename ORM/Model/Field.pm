@@ -45,7 +45,8 @@ sub form_field_name_for_db_select
 
 	if( $rv )
 	{
-		$rv = $table . '.' . $rv;
+		assert( $self -> model() );
+		$rv = $table . '.' . &ORM::Model::__get_db_field_name( $self -> model() -> meta() -> find_attribute_by_name( $rv ) );
 	}
 
 	if( my $f = $self -> db_func() )
