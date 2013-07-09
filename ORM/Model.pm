@@ -710,9 +710,19 @@ sub __lazy_build_value
 	my $attr = shift;
 
 	my $rec_field_name = &__get_db_field_name( $attr );
-	my $coerce_from = &__descr_attr( $attr, 'coerce_from' );
 
-	my $t = $self -> _rec() -> { $rec_field_name };
+	my $t = $self -> __lazy_build_value_actual( $attr,
+						    $self -> _rec() -> { $rec_field_name } );
+
+	return $t;
+}
+
+
+sub __lazy_build_value_actual
+{
+	my ( $self, $attr, $t ) = @_;
+
+	my $coerce_from = &__descr_attr( $attr, 'coerce_from' );
 
 	if( defined $coerce_from )
 	{
@@ -735,7 +745,9 @@ sub __lazy_build_value
 	}
 	
 	return $t;
+
 }
+
 
 sub __load_module
 {
