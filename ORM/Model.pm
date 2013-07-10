@@ -706,10 +706,6 @@ sub meta_change_attr
 	$self -> meta() -> add_attribute( $cloned_arg_obj );
 }
 
-################################################################################
-# Internal functions below
-################################################################################
-
 sub BUILD
 {
 	my $self = shift;
@@ -1053,9 +1049,7 @@ QGVfwMGQEd15mtsn:
 
 			if( $f -> model() )
 			{
-				assert( $f -> model() eq $self, sprintf( "Field from another model (%s!=%s) in fieldset",
-									 $f -> model(),
-									 $self ) );
+				$self -> assert_field_from_this_model( $f );
 
 			}
 			push @rv, $select . ' AS ' . $f -> select_as();
@@ -1063,6 +1057,16 @@ QGVfwMGQEd15mtsn:
 	}
 
 	return @rv;
+}
+
+sub assert_field_from_this_model
+{
+	my ( $self, $f ) = @_;
+
+	assert( $f -> model() eq $self, sprintf( "Field from another model (%s!=%s) in fieldset",
+						 $f -> model(),
+						 $self ) );
+
 }
 
 sub __form_get_sql
@@ -1109,29 +1113,6 @@ sub __form_get_sql
 
 	return $sql;
 }
-
-# sub __form_count_sql
-# {
-# 	my $self = shift;
-
-# 	my @args = @_;
-# 	my %args = @args;
-
-# 	my @where_args = $self -> __form_where( @args );
-
-# 	my @tables_to_select_from = ( $self -> _db_table() );
-
-# 	if( my $t = $args{ '_tables_to_select_from' } )
-# 	{
-# 		@tables_to_select_from = @{ $t };
-# 	}
-
-# 	my $sql = sprintf( "SELECT count(*) FROM %s WHERE %s", 
-# 			   join( ',', @tables_to_select_from ), 
-# 			   join( ' ' . ( $args{ '_logic' } or 'AND' ) . ' ', @where_args ) );
-
-# 	return $sql;
-# }
 
 sub __form_additional_sql
 {
@@ -1311,75 +1292,46 @@ fhFwaEknUtY5xwNr:
 			next fhFwaEknUtY5xwNr;
 		}
 
-		assert( my $class_attr = $self -> meta() -> find_attribute_by_name( $attr ),
-			sprintf( 'invalid non-system attribute in where: %s', $attr ) );
-
-		if( &__descr_attr( $class_attr, 'ignore' ) )
-		{
-			next fhFwaEknUtY5xwNr;
-		}
-
-		my $class_attr_isa = $class_attr -> { 'isa' };
-
-		my $col = &__get_db_field_name( $class_attr );
-
-		my $op = '=';
-		my $field = ORM::Db::Field -> by_type( &__descr_attr( $class_attr, 'db_field_type' ) or $class_attr_isa );
-
-		if( ref( $val ) eq 'HASH' )
-		{
-			if( $class_attr_isa =~ 'HashRef' )
-			{
-				next fhFwaEknUtY5xwNr;
-			} else
-			{
-				my %t = %{ $val };
-				my $rval = undef;
-				( $op, $rval ) = each %t;
-
-				if( ref( $rval ) eq 'ARRAY' )
-				{
-					
-					$val = sprintf( '(%s)', join( ',', map { &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $_ ),
-												      $dbh ) } @{ $rval } ) );
-
-				} else
-				{
-					$val = &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $rval ),
-							      $dbh );
-				}
-			}
-
-		} elsif( ref( $val ) eq 'ARRAY' )
-		{
-
-			if( $class_attr_isa =~ 'ArrayRef' )
-			{
-				$val = &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $val ),
-						      $dbh );
-			} else
-			{
-				# $op = 'IN';
-				# $val = sprintf( '(%s)', join( ',', map { &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $_ ),
-				# 							$dbh ) } @{ $val } ) );
-
-				my @values = map { &__prep_value_for_db( $class_attr, $_ ) } @{ $val };
-				$val = sprintf( 'ANY(%s)', &ORM::Db::dbq( \@values, $dbh ) );
-			}
-
-		} else
-		{
-			$val = &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $val ),
-					      $dbh );
-		}
-
-		$op = $field -> appropriate_op( $op );
+		my ( $op, $col ) = ( undef, undef );
+		my $ta = ( $args{ '_table_alias' } or $self -> _db_table() );
+		( $op, $val, $col ) = $self -> determine_op_and_col_and_correct_val( $attr, $val, $ta, $dbh ); # this
+													       # is
+													       # not
+													       # a
+													       # structured
+													       # method,
+													       # this
+													       # is
+													       # just
+													       # code
+													       # moved
+													       # away
+													       # from
+													       # growing
+													       # too
+													       # big
+													       # function,
+													       # hilarious
+													       # comment
+													       # formatting
+													       # btw,
+													       # thx
+													       # emacs
 
 		if( $op )
 		{
-			push @where_args, sprintf( '%s.%s %s %s', 
-						   ( $args{ '_table_alias' } or $self -> _db_table() ),
-						   $col,
+			my $f = sprintf( "%s.%s",
+					 $ta,
+					 $col );
+					 
+			if( $self -> this_is_field( $attr ) )
+			{
+				$f = $attr -> form_field_name_for_db_select( $ta );
+
+			}
+
+			push @where_args, sprintf( '%s %s %s', 
+						   $f,
 						   $op,
 						   $val );
 		}
@@ -1392,6 +1344,150 @@ fhFwaEknUtY5xwNr:
 
 	return @where_args;
 }
+
+sub this_is_field
+{
+	my ( $self, $attr ) = @_;
+
+	my $rv = 0;
+
+	if( blessed( $attr ) and ( $attr -> isa( 'ORM::Model::Field' ) ) )
+	{
+		$rv = 1;
+	}
+	return $rv;
+}
+
+
+
+sub determine_op_and_col_and_correct_val
+{
+	my ( $self, $attr, $val, $ta, $dbh ) = @_;
+
+	my $op = '=';
+	my $col = 'UNUSED';
+
+	if( $self -> this_is_field( $attr ) )
+	{
+		# field has base_attr actually, think abt it
+		if( $attr -> model() )
+		{
+			$self -> assert_field_from_this_model( $attr );
+		}
+
+		if( ref( $val ) eq 'HASH' )
+		{
+			
+			my %t = %{ $val };
+			my $rval = undef;
+			( $op, $rval ) = each %t;
+				
+			if( ref( $rval ) eq 'ARRAY' )
+			{
+				$val = sprintf( '(%s)', join( ',', map { &ORM::Db::dbq( $_,
+												$dbh ) } @{ $rval } ) );
+					
+			} else
+			{
+				$val = &ORM::Db::dbq( $rval,
+						      $dbh );
+			}
+			
+		} elsif( ref( $val ) eq 'ARRAY' )
+		{
+			
+			my @values = @{ $val };
+			$val = sprintf( 'ANY(%s)', &ORM::Db::dbq( \@values, $dbh ) );
+			
+		} elsif( $self -> this_is_field( $val ) )
+		{ 
+			if( $val -> model() )
+			{
+				$self -> assert_field_from_this_model( $val );
+			}
+			$val = $val -> form_field_name_for_db_select( $ta );
+		} else
+		{
+			$val = &ORM::Db::dbq( $val,
+					      $dbh );
+		}
+
+	} else
+	{
+		assert( my $class_attr = $self -> meta() -> find_attribute_by_name( $attr ),
+			sprintf( 'invalid non-system attribute in where: %s', $attr ) );
+
+		if( &__descr_attr( $class_attr, 'ignore' ) )
+		{
+			next fhFwaEknUtY5xwNr;
+		}
+
+		my $class_attr_isa = $class_attr -> { 'isa' };
+		$col = &__get_db_field_name( $class_attr );
+		my $field = ORM::Db::Field -> by_type( &__descr_attr( $class_attr, 'db_field_type' ) or $class_attr_isa );
+		
+		if( ref( $val ) eq 'HASH' )
+		{
+			if( $class_attr_isa =~ 'HashRef' )
+			{
+				1;
+				# next fhFwaEknUtY5xwNr;
+			} else
+			{
+				my %t = %{ $val };
+				my $rval = undef;
+				( $op, $rval ) = each %t;
+				
+				if( ref( $rval ) eq 'ARRAY' )
+				{
+					
+					$val = sprintf( '(%s)', join( ',', map { &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $_ ),
+												$dbh ) } @{ $rval } ) );
+					
+				} else
+				{
+					$val = &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $rval ),
+							      $dbh );
+				}
+			}
+			
+		} elsif( ref( $val ) eq 'ARRAY' )
+		{
+			
+			if( $class_attr_isa =~ 'ArrayRef' )
+			{
+				$val = &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $val ),
+						      $dbh );
+			} else
+			{
+				# $op = 'IN';
+				# $val = sprintf( '(%s)', join( ',', map { &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $_ ),
+				# 							$dbh ) } @{ $val } ) );
+				
+				my @values = map { &__prep_value_for_db( $class_attr, $_ ) } @{ $val };
+				$val = sprintf( 'ANY(%s)', &ORM::Db::dbq( \@values, $dbh ) );
+			}
+			
+		} elsif( $self -> this_is_field( $val ) )
+		{ 
+			if( $val -> model() )
+			{
+				$self -> assert_field_from_this_model( $val );
+			}
+			$val = $val -> form_field_name_for_db_select( $ta );
+		} else
+		{
+			$val = &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $val ),
+					      $dbh );
+		}
+		
+		$op = $field -> appropriate_op( $op );
+		
+	}
+	
+	return ( $op, $val, $col );
+}
+
 
 sub __find_primary_key
 {

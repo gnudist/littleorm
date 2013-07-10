@@ -17,6 +17,10 @@ has 'db_func_tpl' => ( is => 'rw',
 		       isa => 'Str',
 		       default => '%s(%s)' );
 
+has 'func_args_tpl' => ( is => 'rw',
+			 isa => 'Str',
+			 default => '%s' );
+
 has 'select_as' => ( is => 'rw',
 		     isa => 'Str',
 		     default => \&get_select_as_field_name );
@@ -62,7 +66,8 @@ sub form_field_name_for_db_select
 	{
 		$rv = sprintf( $self -> db_func_tpl(),
 			       $f,
-			       ( $self -> _distinct() ? ' DISTINCT ' : '' ) . $rv );
+			       sprintf( $self -> func_args_tpl(),
+					( $self -> _distinct() ? ' DISTINCT ' : '' ) . $rv ) );
 	}
 
 	return $rv;
