@@ -53,6 +53,43 @@ use Scalar::Util 'blessed';
 	}
 }
 
+
+
+
+	  # 			                         
+          # '_tables_to_select_from' => [
+          #                               'site_dealers T1',
+          #                               'keys_serial T2',
+          #                               'new_keys T3'
+          #                             ]
+
+
+
+
+
+sub determine_ta_for_field_from_another_model
+{
+	my ( $self, $tables ) = @_;
+
+	my $rv = $self -> model() -> _db_table();
+
+	if( $tables )
+	{
+eocEfjT38ttaOGys:
+		foreach my $t ( @{ $tables } )
+		{
+			my ( $table, $alias ) = split( /\s+/, $t );
+			if( $table eq $rv )
+			{
+				$rv = $alias;
+				last eocEfjT38ttaOGys;
+			}
+		}
+	}
+	return $rv;
+
+}
+
 sub this_is_field
 {
 	my ( $self, $attr ) = @_;
@@ -64,6 +101,15 @@ sub this_is_field
 		$rv = 1;
 	}
 	return $rv;
+}
+
+sub assert_model_soft
+{
+	my ( $self, $model ) = @_;
+	if( $self -> model() )
+	{
+		$self -> assert_model( $model );
+	}
 }
 
 sub assert_model

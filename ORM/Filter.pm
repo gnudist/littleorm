@@ -3,6 +3,7 @@
 use strict;
 
 package ORM::Model;
+use ORM::Model::Field ();
 
 # Extend ORM::Model capabilities with filter support:
 
@@ -445,12 +446,11 @@ sub get_returning
 	my $self = shift;
 
 	my $rv = $self -> returning();
-	my $rv_f = $self -> returning_field();
-
+	
 	if( $rv )
 	{
 		1;
-	} elsif( $rv_f )
+	} elsif( my $rv_f = $self -> returning_field() )
 	{
 		$rv = $rv_f;
 

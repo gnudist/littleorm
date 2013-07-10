@@ -10,6 +10,7 @@ has '_rec' => ( is => 'rw', isa => 'HashRef', required => 1, metaclass => 'ORM::
 
 use Carp::Assert 'assert';
 use Scalar::Util 'blessed';
+use Module::Load ();
 
 sub _db_table{ assert( 0, '" _db_table " method must be redefined.' ) }
 
@@ -145,15 +146,13 @@ sub borrow_field
 	}
 
 	return $rv;
-
 }
 
 sub create_one_return_value_item
 {
 	my $self = shift;
 	my $rec = shift;
-	my @args = @_;
-	my %args = @args;
+	my %args = @_;
 
 	my $rv = undef;
 
@@ -167,7 +166,6 @@ sub create_one_return_value_item
 			{
 				foreach my $f ( @{ $fs } )
 				{
-
 					unless( ORM::Model::Field -> this_is_field( $f ) )
 					{
 
@@ -202,7 +200,6 @@ sub create_one_return_value_item
 					$rv -> add_to_set( { model => ( ref( $self ) or $self ),
 							     dbfield => $dbfield,
 							     value => $value } );
-					
 				}
 			}
 		} else
@@ -265,11 +262,8 @@ sub get_many
 
 	while( my $data = $sth -> fetchrow_hashref() )
 	{
-
-		my $o = $self -> create_one_return_value_item( $data, @args );#$self -> new( _rec => $data );
+		my $o = $self -> create_one_return_value_item( $data, @args );
 		push @outcome, $o;
-
-
 	}
 
 	$sth -> finish();
@@ -295,9 +289,6 @@ sub _sql_func_on_attr
 		return $sql;
 	}
 
-	# my $r = &ORM::Db::getrow( $sql, $self -> __get_dbh( @args ) );
-	# $outcome = $r -> { $func };
-
 	my $sth = &ORM::Db::prep( $sql, $self -> __get_dbh( @args ) );
 	$sth -> execute();
 	my $rows = $sth -> rows();
@@ -311,14 +302,9 @@ sub _sql_func_on_attr
 			my $set = ORM::DataSet -> new();
 			while( my ( $k, $v ) = each %{ $data } )
 			{
-				# my $field = ORM::DataSet::Field -> new( model => ( ref( $self ) or $self ),
-				# 					dbfield => $k,
-				# 					value => $v );
-
-
-				my $field = { 'model' => ( ref( $self ) or $self ),
-					      'dbfield' => $k,
-					      'value' => $v };
+				my $field = { model => ( ref( $self ) or $self ),
+					      dbfield => $k,
+					      value => $v };
 
 				$set -> add_to_set( $field );
 			}
@@ -358,7 +344,6 @@ sub max
 	}
 
 	return $rv;
-
 }
 
 sub min
@@ -377,7 +362,6 @@ sub min
 	}
 
 	return $rv;
-
 }
 
 sub __default_db_field_name_for_func
@@ -438,7 +422,6 @@ sub __form_sql_func_sql
 			   join( ' ' . ( $args{ '_logic' } or 'AND' ) . ' ', @where_args ) );
 
 	$sql .= $self -> __form_additional_sql( @args );
-	#$sql .= $self -> __form_sql_func_sql_extras( @args );
 
 	return $sql;
 }
@@ -453,7 +436,6 @@ sub __form_sql_func_sql_more_fields
 	
 	if( my $t = $args{ '_groupby' } )
 	{
-
 		my @sqls = ();
 
 		my $ta = ( $args{ '_table_alias' }
@@ -470,11 +452,9 @@ sub __form_sql_func_sql_more_fields
 
 				if( $grp -> model() and ( $grp -> model() ne $self ) )
 				{
-					$use_ta = $self -> determine_ta_for_field_from_another_model( $grp,
-												      $args{ '_tables_to_select_from' } );
+					$use_ta = $grp -> determine_ta_for_field_from_another_model( $args{ '_tables_to_select_from' } );
 
 				}
-				# $self -> assert_field_from_this_model( $grp );
 				$f = $grp -> form_field_name_for_db_select( $use_ta );
 
 			} else
@@ -486,39 +466,12 @@ sub __form_sql_func_sql_more_fields
 			push @sqls, $f;
 		}
 
-
-
-		# $rv .= join( ',', map { sprintf( "%s.%s",
-		# 				 ( $args{ '_table_alias' }
-		# 				   or
-		# 				   $self -> _db_table() ),
-		# 				 &__get_db_field_name( $self -> meta() -> find_attribute_by_name( $_ ) ) ) } @{ $t } );
 		$rv .= join( ',', @sqls );
 		$rv .= ',';
-
 	}
-
 
 	return $rv;
 }
-
-# sub __form_sql_func_sql_extras
-# {
-# 	my $self = shift;
-
-# 	my @args = @_;
-# 	my %args = @args;
-
-# 	assert( my $func = $args{ '_func' } );
-# 	my $rv = '';
-
-# 	if( ( $func eq 'count' ) and ( my $t = $args{ '_groupby' } ) )
-# 	{
-# 		$rv = $self -> __form_additional_sql_groupby( @args );
-# 	}
-
-# 	return $rv;
-# }
 
 sub count
 {
@@ -600,7 +553,6 @@ pgmxcobWi7lULIJW:
 	}
 
 	return $rv;
-
 }
 
 sub update
@@ -616,30 +568,17 @@ sub update
 ETxc0WxZs0boLUm1:
 	foreach my $attr ( $self -> meta() -> get_all_attributes() )
 	{
+		if( $self -> __should_ignore_on_write( $attr ) )
+		{
+			next ETxc0WxZs0boLUm1;
+		}
+
 		my $aname = $attr -> name();
-
-		if( $aname =~ /^_/ )
-		{
-			# internal attrs start with underscore, skip them
-			next ETxc0WxZs0boLUm1;
-		}
-
-		if( &__descr_attr( $attr, 'ignore' ) 
-		    or 
-		    &__descr_attr( $attr, 'primary_key' )
-		    or
-		    &__descr_attr( $attr, 'ignore_write' ) )
-		{
-			next ETxc0WxZs0boLUm1;
-		}
 
 		my $value = &__prep_value_for_db( $attr, $self -> $aname() );
 		push @upadte_pairs, sprintf( '%s=%s', &__get_db_field_name( $attr ), &ORM::Db::dbq( $value, $self -> __get_dbh() ) );
 
 	}
-
-	#
-
 
 	my $where = '1=2';
 
@@ -690,22 +629,11 @@ sub copy
 kdCcjt3iG8jOfthJ:
 	foreach my $attr ( $self -> meta() -> get_all_attributes() )
 	{
+		if( $self -> __should_ignore_on_write( $attr ) )
+		{
+			next kdCcjt3iG8jOfthJ;
+		}
 		my $aname = $attr -> name();
-
-		if( $aname =~ /^_/ )
-		{
-			# internal attrs start with underscore, skip them
-			next kdCcjt3iG8jOfthJ;
-		}
-
-		if( &__descr_attr( $attr, 'ignore' ) 
-		    or 
-		    &__descr_attr( $attr, 'primary_key' )
-		    or
-		    &__descr_attr( $attr, 'ignore_write' ) )
-		{
-			next kdCcjt3iG8jOfthJ;
-		}
 
 		unless( exists $copied_args{ $aname } )
 		{
@@ -784,7 +712,7 @@ FXOINoqUOvIG1kAG:
 
 		my $orm_initialized_attr_desc_option = 'orm_initialized_attr' . ref( $self );
 
-		if( ( $aname =~ /^_/ ) or &__descr_attr( $attr, 'ignore' ) or &__descr_attr( $attr, $orm_initialized_attr_desc_option ) )
+		if( $self -> __should_ignore( $attr ) or &__descr_attr( $attr, $orm_initialized_attr_desc_option ) )
 		{
 			# internal attrs start with underscore, skip them
 			next FXOINoqUOvIG1kAG;
@@ -886,17 +814,18 @@ sub __load_module
 {
 	my $mn = shift;
 
-	$mn =~ s/::/\//g;
-	$mn .= '.pm';
+	Module::Load::load( $mn );
 
-	require( $mn );
+	# $mn =~ s/::/\//g;
+	# $mn .= '.pm';
+
+	# require( $mn );
 
 }
 
 sub __correct_insert_args
 {
 	my $self = shift;
-
 	my %args = @_;
 
 	my $dbh = $self -> __get_dbh( %args );
@@ -971,7 +900,6 @@ sub __prep_value_for_db
 {
 	my ( $attr, $value ) = @_;
 
-
 	my $isa = $attr -> { 'isa' };
 
 	{
@@ -985,7 +913,6 @@ sub __prep_value_for_db
 
 	my $rv = $value;
 
-
 	my $coerce_to = &__descr_attr( $attr, 'coerce_to' );
 
 	if( defined $coerce_to )
@@ -993,7 +920,7 @@ sub __prep_value_for_db
 		$rv = $coerce_to -> ( $value );
 	}
 
-	if( ref( $value ) and blessed( $value ) and &__descr_attr( $attr, 'foreign_key' ) )
+	if( blessed( $value ) and &__descr_attr( $attr, 'foreign_key' ) )
 	{
 		my $foreign_key_attr_name = &__descr_attr( $attr, 'foreign_key_attr_name' );
 
@@ -1007,7 +934,6 @@ sub __prep_value_for_db
 	}
 
 	return $rv;
-
 }
 
 sub __form_delete_sql
@@ -1027,8 +953,6 @@ sub __form_delete_sql
 				my $pkname = $pk -> name();
 				$args{ $pkname } = $self -> $pkname();
 			}
-
-
 		} else
 		{
 			foreach my $attr ( $self -> meta() -> get_all_attributes() )
@@ -1044,6 +968,50 @@ sub __form_delete_sql
 	my $sql = sprintf( "DELETE FROM %s WHERE %s", $self -> _db_table(), join( ' AND ', @where_args ) );
 
 	return $sql;
+}
+
+sub __should_ignore_on_write
+{
+	my ( $self, $attr ) = @_;
+	my $rv = $self -> __should_ignore();
+
+	unless( $rv )
+	{
+		if( &__descr_attr( $attr, 'primary_key' )
+		    or
+		    &__descr_attr( $attr, 'ignore_write' ) )
+		{
+			$rv = 1;
+		}
+	}
+
+	return $rv;
+}
+
+sub __should_ignore
+{
+	my ( $self, $attr ) = @_;
+	my $rv = 0;
+
+	unless( $rv )
+	{
+		my $aname = $attr -> name();
+		if( $aname =~ /^_/ )
+		{
+			$rv = 1;
+		}
+	}
+
+	unless( $rv )
+	{
+
+		if( &__descr_attr( $attr, 'ignore' ) )
+		{
+			$rv = 1;
+		}
+	}
+
+	return $rv;
 }
 
 sub __collect_field_names
@@ -1062,27 +1030,23 @@ sub __collect_field_names
 
 	my $field_set = $args{ '_fieldset' };
 
+	my $ta = ( $args{ '_table_alias' }
+		   or
+		   $self -> _db_table() );
+
 QGVfwMGQEd15mtsn:
 	foreach my $attr ( $self -> meta() -> get_all_attributes() )
 	{
-		
+		if( $self -> __should_ignore( $attr ) )
+		{
+			next QGVfwMGQEd15mtsn;
+		}
+
 		my $aname = $attr -> name();
 
-		if( $aname =~ /^_/ )
-		{
-			next QGVfwMGQEd15mtsn;
-		}
-
-		if( &__descr_attr( $attr, 'ignore' ) )
-		{
-			next QGVfwMGQEd15mtsn;
-		}
-
-		my $db_fn = ( $args{ '_table_alias' }
-			      or
-			      $self -> _db_table() ) .
-			      '.' .
-			      &__get_db_field_name( $attr );
+		my $db_fn = $ta .
+		            '.' .
+			    &__get_db_field_name( $attr );
 
 		if( $groupby )
 		{
@@ -1102,10 +1066,6 @@ QGVfwMGQEd15mtsn:
 
 	if( $field_set )
 	{
-		my $ta = ( $args{ '_table_alias' }
-			   or
-			   $self -> _db_table() );
-
 		foreach my $f ( @{ $field_set } )
 		{
 			unless( ORM::Model::Field -> this_is_field( $f ) )
@@ -1120,52 +1080,15 @@ QGVfwMGQEd15mtsn:
 			{
 				unless( $f -> model() eq $self )
 				{
-					my $ta = $self -> determine_ta_for_field_from_another_model( $f,
-												     $args{ '_tables_to_select_from' } );
+					my $ta = $f -> determine_ta_for_field_from_another_model( $args{ '_tables_to_select_from' } );
 					$select = $f -> form_field_name_for_db_select( $ta );
 				}
-
-				#print Data::Dumper::Dumper( \%args );
-	  # 			                         ],
-          # '_tables_to_select_from' => [
-          #                               'site_dealers T1',
-          #                               'keys_serial T2',
-          #                               'new_keys T3'
-          #                             ],
-
-
-
-				# $self -> assert_field_from_this_model( $f );
-
 			}
 			push @rv, $select . ' AS ' . $f -> select_as();
 		}
 	}
 
 	return @rv;
-}
-
-sub determine_ta_for_field_from_another_model
-{
-	my ( $self, $field, $tables ) = @_;
-
-	my $rv = $field -> model() -> _db_table();
-
-	if( $tables )
-	{
-eocEfjT38ttaOGys:
-		foreach my $t ( @{ $tables } )
-		{
-			my ( $table, $alias ) = split( /\s+/, $t );
-			if( $table eq $rv )
-			{
-				$rv = $alias;
-				last eocEfjT38ttaOGys;
-			}
-		}
-	}
-	return $rv;
-
 }
 
 sub __form_get_sql
@@ -1252,7 +1175,6 @@ sub __form_additional_sql
 			$sql .= ' ORDER BY ' . join( ',', @pairs );
 		} elsif(  ref( $t ) eq 'ARRAY' )
 		{ 
-			
 			my @pairs = ();
 
 			my @arr = @{ $t };
@@ -1272,20 +1194,15 @@ sub __form_additional_sql
 						 &__get_db_field_name( $t );
 				}
 
-
-
 				push @pairs, sprintf( '%s %s',
 						      ( $dbf or $k ),
 						      $sort_order );
 			}
 			$sql .= ' ORDER BY ' . join( ',', @pairs );
 
-
 		} else
 		{
 			# then its attr name and unspecified order
-
-
 			my $dbf = $t;
 
 			if( my $t1 = $self -> meta() -> find_attribute_by_name( $t ) )
@@ -1340,8 +1257,7 @@ sub __form_additional_sql_groupby
 
 				if( $grp -> model() and ( $grp -> model() ne $self ) )
 				{
-					$use_ta = $self -> determine_ta_for_field_from_another_model( $grp,
-												      $args{ '_tables_to_select_from' } );
+					$use_ta = $grp -> determine_ta_for_field_from_another_model( $args{ '_tables_to_select_from' } );
 				}
 
 				$f = $grp -> form_field_name_for_db_select( $use_ta );
@@ -1356,11 +1272,6 @@ sub __form_additional_sql_groupby
 		}
 
 		$rv .= join( ',', @sqls );
-		# $rv .= join( ',', map { sprintf( "%s.%s",
-		# 				 ( $args{ '_table_alias' }
-		# 				   or
-		# 				   $self -> _db_table() ),
-		# 				 &__get_db_field_name( $self -> meta() -> find_attribute_by_name( $_ ) ) ) } @{ $t } );
 	}
 
 	return $rv;
@@ -1451,7 +1362,6 @@ fhFwaEknUtY5xwNr:
 														       # btw,
 														       # thx
 														       # emacs
-
 		if( $op )
 		{
 			my $f = sprintf( "%s.%s",
@@ -1460,8 +1370,8 @@ fhFwaEknUtY5xwNr:
 					 
 			if( ORM::Model::Field -> this_is_field( $attr ) )
 			{
+				$attr -> assert_model_soft( $self );
 				$f = $attr -> form_field_name_for_db_select( $ta );
-
 			}
 
 			push @where_args, sprintf( '%s %s %s', 
@@ -1488,15 +1398,8 @@ sub determine_op_and_col_and_correct_val
 
 	if( ORM::Model::Field -> this_is_field( $attr ) )
 	{
-		# field has base_attr actually, think abt it
-		# if( $attr -> model() )
-		# {
-		# 	$self -> assert_field_from_this_model( $attr );
-		# }
-
 		if( ref( $val ) eq 'HASH' )
 		{
-			
 			my %t = %{ $val };
 			my $rval = undef;
 			( $op, $rval ) = each %t;
@@ -1523,12 +1426,9 @@ sub determine_op_and_col_and_correct_val
 			my $use_ta = $ta;
 			if( $val -> model() )
 			{
-				# $self -> assert_field_from_this_model( $val );
-
 				unless( $val -> model() eq $self )
 				{
-					$use_ta = $self -> determine_ta_for_field_from_another_model( $val,
-												      $args -> { '_tables_to_select_from' } );
+					$use_ta = $val -> determine_ta_for_field_from_another_model( $args -> { '_tables_to_select_from' } );
 				}
 
 			}
@@ -1587,10 +1487,6 @@ sub determine_op_and_col_and_correct_val
 						      $dbh );
 			} else
 			{
-				# $op = 'IN';
-				# $val = sprintf( '(%s)', join( ',', map { &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $_ ),
-				# 							$dbh ) } @{ $val } ) );
-				
 				my @values = map { &__prep_value_for_db( $class_attr, $_ ) } @{ $val };
 				$val = sprintf( 'ANY(%s)', &ORM::Db::dbq( \@values, $dbh ) );
 			}
@@ -1602,11 +1498,9 @@ sub determine_op_and_col_and_correct_val
 			{
 				unless( $val -> model() eq $self )
 				{
-					$use_ta = $self -> determine_ta_for_field_from_another_model( $val,
-												      $args -> { '_tables_to_select_from' } );
+					$use_ta = $val -> determine_ta_for_field_from_another_model( $args -> { '_tables_to_select_from' } );
 				}
 
-				# $self -> assert_field_from_this_model( $val );
 			}
 			$val = $val -> form_field_name_for_db_select( $use_ta );
 
