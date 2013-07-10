@@ -116,10 +116,17 @@ sub filter
 
 		if( $arg eq '_return' )
 		{
-			assert( $self -> meta() -> find_attribute_by_name( $val ), sprintf( 'Incorrect %s attribute "%s" in return',
+			if( $self -> this_is_field( $val ) )
+			{
+				$rv -> returning_field( $val );
+			} else
+			{
+
+				assert( $self -> meta() -> find_attribute_by_name( $val ), sprintf( 'Incorrect %s attribute "%s" in return',
 											    $class,
 											    $val ) );
-			$rv -> returning( $val ); 
+				$rv -> returning( $val ); 
+			}
 
 		} elsif( $arg eq '_sortby' )
 		{
@@ -173,6 +180,7 @@ use Moose;
 has 'model' => ( is => 'rw', isa => 'Str', required => 1 );
 has 'table_alias' => ( is => 'rw', isa => 'Str', default => \&get_uniq_alias_for_table );
 has 'returning' => ( is => 'rw', isa => 'Maybe[Str]' ); # return column name for connecting with other filter
+has 'returning_field' => ( is => 'rw', isa => 'ORM::Model::Field' );
 has 'clauses' => ( is => 'rw', isa => 'ArrayRef[ORM::Clause]', default => sub { [] } );
 
 use Carp::Assert 'assert';
@@ -197,38 +205,75 @@ sub form_conn_sql
 	my $conn_sql = '';
 
 	{
-		assert( my $attr1 = $self -> model() -> meta() -> find_attribute_by_name( $arg ),
-			'Injalid attribute 1 in filter: ' . $arg );
+		my $ta1 = $self -> table_alias();
+		my $ta2 = $filter -> table_alias();
 
-		assert( my $attr2 = $filter -> model() -> meta() -> find_attribute_by_name( $filter -> get_returning() ),
-			'Injalid attribute 2 in filter (much rarer case)' );
-
-		if( my $fk = &ORM::Model::__descr_attr( $attr1, 'foreign_key' ) )
-		{
-			if( ( $fk eq $filter -> model() ) 
-			    and
-			    ( my $fkattr = &ORM::Model::__descr_attr( $attr1, 'foreign_key_attr_name' ) ) )
-			{
-				assert( $attr2 = $filter -> model() -> meta() -> find_attribute_by_name( $fkattr ),
-					'Injalid attribute 2 in filter (subcase of much rarer case)' );
-			}
-		}
-
-		my $attr1_t = &ORM::Model::__descr_attr( $attr1, 'db_field_type' );
-		my $attr2_t = &ORM::Model::__descr_attr( $attr2, 'db_field_type' );
-
+		my $attr1_t = '';
+		my $attr2_t = '';
 		my $cast = '';
 
-		if( $attr1_t and $attr2_t and ( $attr1_t ne $attr2_t ) )
+		my $arg1 = $arg;
+		my $arg2 = $filter -> get_returning();
+
+		my ( $f1, $f2 ) = ( '', '' );
+
 		{
-			$cast = '::' . $attr1_t;
+			my $attr1 = $self -> model() -> meta() -> find_attribute_by_name( $arg1 );
+
+			assert( ( $attr1 or $self -> model() -> this_is_field( $arg1 ) ),
+				'Injalid attribute 1 in filter: ' . $arg1 );
+
+			my $attr2 = $filter -> model() -> meta() -> find_attribute_by_name( $arg2 );
+			assert( ( $attr2 or $self -> model() -> this_is_field( $arg2 ) ),
+				'Injalid attribute 2 in filter (much rarer case)' );
+
+			
+			if( ( $attr1 and $attr2 ) and ( my $fk = &ORM::Model::__descr_attr( $attr1, 'foreign_key' ) ) )
+			{
+				if( ( $fk eq $filter -> model() ) 
+				    and
+				    ( my $fkattr = &ORM::Model::__descr_attr( $attr1, 'foreign_key_attr_name' ) ) )
+				{
+					assert( $attr2 = $filter -> model() -> meta() -> find_attribute_by_name( $fkattr ),
+						'Injalid attribute 2 in filter (subcase of much rarer case)' );
+				}
+			}
+			if( $attr1 )
+			{
+				$attr1_t = &ORM::Model::__descr_attr( $attr1, 'db_field_type' );
+				$f1 = sprintf( "%s.%s",
+					       $ta1,
+					       &ORM::Model::__get_db_field_name( $attr1 ) );
+				
+			} else
+			{
+				$f1 = $arg1 -> form_field_name_for_db_select( $ta1 );
+			}
+
+			if( $attr2 )
+			{
+				$attr2_t = &ORM::Model::__descr_attr( $attr2, 'db_field_type' );
+				$f2 = sprintf( "%s.%s",
+					       $ta2,
+					       &ORM::Model::__get_db_field_name( $attr2 ) );
+
+			} else
+			{
+				$f2 = $arg2 -> form_field_name_for_db_select( $ta2 );
+			}
+
+			if( $attr1_t and $attr2_t and ( $attr1_t ne $attr2_t ) )
+			{
+				$cast = '::' . $attr1_t;
+			}
+
 		}
 
-		$conn_sql = sprintf( "%s.%s=%s.%s%s",
-				     $self -> table_alias(),
-				     &ORM::Model::__get_db_field_name( $attr1 ),
-				     $filter -> table_alias(),
-				     &ORM::Model::__get_db_field_name( $attr2 ),
+
+
+		$conn_sql = sprintf( "%s=%s%s",
+				     $f1,
+				     $f2,				     
 				     $cast );
 	}
 
@@ -399,8 +444,16 @@ sub get_returning
 	my $self = shift;
 
 	my $rv = $self -> returning();
+	my $rv_f = $self -> returning_field();
 
-	unless( $rv )
+	if( $rv )
+	{
+		1;
+	} elsif( $rv_f )
+	{
+		$rv = $rv_f;
+
+	} else
 	{
 		assert( my $pk = $self -> model() -> __find_primary_key(),
 			sprintf( 'Model %s must have PK or specify "returning" manually',
