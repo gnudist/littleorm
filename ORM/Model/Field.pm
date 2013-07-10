@@ -39,6 +39,7 @@ has '_distinct' => ( is => 'rw',
 
 
 use Carp::Assert 'assert';
+use Scalar::Util 'blessed';
 
 {
 	my $cnt = 0;
@@ -52,6 +53,26 @@ use Carp::Assert 'assert';
 	}
 }
 
+sub this_is_field
+{
+	my ( $self, $attr ) = @_;
+
+	my $rv = 0;
+
+	if( blessed( $attr ) and ( $attr -> isa( 'ORM::Model::Field' ) ) )
+	{
+		$rv = 1;
+	}
+	return $rv;
+}
+
+sub assert_model
+{
+	my ( $self, $model ) = @_;
+
+	my $t = ( ref( $model ) or $model );
+	assert( $self -> model() eq $t );
+}
 
 sub form_field_name_for_db_select
 {

@@ -116,8 +116,9 @@ sub filter
 
 		if( $arg eq '_return' )
 		{
-			if( $self -> this_is_field( $val ) )
+			if( ORM::Model::Field -> this_is_field( $val ) )
 			{
+				$val -> assert_model( $class );
 				$rv -> returning_field( $val );
 			} else
 			{
@@ -220,11 +221,11 @@ sub form_conn_sql
 		{
 			my $attr1 = $self -> model() -> meta() -> find_attribute_by_name( $arg1 );
 
-			assert( ( $attr1 or $self -> model() -> this_is_field( $arg1 ) ),
+			assert( ( $attr1 or ORM::Model::Field -> this_is_field( $arg1 ) ),
 				'Injalid attribute 1 in filter: ' . $arg1 );
 
 			my $attr2 = $filter -> model() -> meta() -> find_attribute_by_name( $arg2 );
-			assert( ( $attr2 or $self -> model() -> this_is_field( $arg2 ) ),
+			assert( ( $attr2 or ORM::Model::Field -> this_is_field( $arg2 ) ),
 				'Injalid attribute 2 in filter (much rarer case)' );
 
 			

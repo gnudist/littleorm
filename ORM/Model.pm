@@ -168,7 +168,7 @@ sub create_one_return_value_item
 				foreach my $f ( @{ $fs } )
 				{
 
-					unless( $self -> this_is_field( $f ) )
+					unless( ORM::Model::Field -> this_is_field( $f ) )
 					{
 
 						$f = $self -> borrow_field( $f,
@@ -190,7 +190,7 @@ sub create_one_return_value_item
 				{
 					my $dbfield = undef;
 
-					if( $self -> this_is_field( $f ) )
+					if( ORM::Model::Field -> this_is_field( $f ) )
 					{
 						$dbfield = $f -> select_as();
 					} else
@@ -464,7 +464,7 @@ sub __form_sql_func_sql_more_fields
 		{
 			my $f = undef;
 
-			if( $self -> this_is_field( $grp ) )
+			if( ORM::Model::Field -> this_is_field( $grp ) )
 			{
 				my $use_ta = $ta;
 
@@ -1056,7 +1056,7 @@ sub __collect_field_names
 	my $groupby = undef;
 	if( my $t = $args{ '_groupby' } )
 	{
-		my %t = map { $_ => 1 } grep { not $self -> this_is_field( $_ ) } @{ $t };
+		my %t = map { $_ => 1 } grep { not ORM::Model::Field -> this_is_field( $_ ) } @{ $t };
 		$groupby = \%t;
 	}
 
@@ -1108,7 +1108,7 @@ QGVfwMGQEd15mtsn:
 
 		foreach my $f ( @{ $field_set } )
 		{
-			unless( $self -> this_is_field( $f ) )
+			unless( ORM::Model::Field -> this_is_field( $f ) )
 			{
 				$f = $self -> borrow_field( $f,
 							    select_as => &__get_db_field_name( $self -> meta() -> find_attribute_by_name( $f ) ) );
@@ -1165,16 +1165,6 @@ eocEfjT38ttaOGys:
 		}
 	}
 	return $rv;
-
-}
-
-sub assert_field_from_this_model
-{
-	my ( $self, $f ) = @_;
-
-	assert( $f -> model() eq $self, sprintf( "Field from another model (%s!=%s) in fieldset",
-						 $f -> model(),
-						 $self ) );
 
 }
 
@@ -1342,7 +1332,7 @@ sub __form_additional_sql_groupby
 		{
 			my $f = undef;
 
-			if( $self -> this_is_field( $grp ) )
+			if( ORM::Model::Field -> this_is_field( $grp ) )
 			{
 				# $self -> assert_field_from_this_model( $grp );
 
@@ -1468,7 +1458,7 @@ fhFwaEknUtY5xwNr:
 					 $ta,
 					 $col );
 					 
-			if( $self -> this_is_field( $attr ) )
+			if( ORM::Model::Field -> this_is_field( $attr ) )
 			{
 				$f = $attr -> form_field_name_for_db_select( $ta );
 
@@ -1489,21 +1479,6 @@ fhFwaEknUtY5xwNr:
 	return @where_args;
 }
 
-sub this_is_field
-{
-	my ( $self, $attr ) = @_;
-
-	my $rv = 0;
-
-	if( blessed( $attr ) and ( $attr -> isa( 'ORM::Model::Field' ) ) )
-	{
-		$rv = 1;
-	}
-	return $rv;
-}
-
-
-
 sub determine_op_and_col_and_correct_val
 {
 	my ( $self, $attr, $val, $ta, $args, $dbh ) = @_;
@@ -1511,7 +1486,7 @@ sub determine_op_and_col_and_correct_val
 	my $op = '=';
 	my $col = 'UNUSED';
 
-	if( $self -> this_is_field( $attr ) )
+	if( ORM::Model::Field -> this_is_field( $attr ) )
 	{
 		# field has base_attr actually, think abt it
 		# if( $attr -> model() )
@@ -1543,7 +1518,7 @@ sub determine_op_and_col_and_correct_val
 			my @values = @{ $val };
 			$val = sprintf( 'ANY(%s)', &ORM::Db::dbq( \@values, $dbh ) );
 			
-		} elsif( $self -> this_is_field( $val ) )
+		} elsif( ORM::Model::Field -> this_is_field( $val ) )
 		{ 
 			my $use_ta = $ta;
 			if( $val -> model() )
@@ -1620,7 +1595,7 @@ sub determine_op_and_col_and_correct_val
 				$val = sprintf( 'ANY(%s)', &ORM::Db::dbq( \@values, $dbh ) );
 			}
 			
-		} elsif( $self -> this_is_field( $val ) )
+		} elsif( ORM::Model::Field -> this_is_field( $val ) )
 		{ 
 			my $use_ta = $ta;
 			if( $val -> model() )
