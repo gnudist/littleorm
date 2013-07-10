@@ -33,6 +33,23 @@ sub AUTOLOAD
 	return $self -> field_by_name( $AUTOLOAD );
 }
 
+
+sub field
+{
+	my ( $self, $field ) = @_;
+
+
+	my $rv = $self -> field_by_name( $field -> select_as() );
+
+	if( ( my $m = $field -> model() ) and ( my $attr = $field -> base_attr() ) and $field -> type_preserve() )
+	{
+		my $attr = $m -> meta() -> find_attribute_by_name( $attr );
+		$rv = $m -> __lazy_build_value_actual( $attr, $rv );
+	}
+
+	return $rv;
+}
+
 sub field_by_name
 {
 	my ( $self, $name ) = @_;

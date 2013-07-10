@@ -29,6 +29,9 @@ has 'post_process' => ( is => 'rw',
 			isa => 'CodeRef',
 			default => sub { sub { $_[ 0 ] } } );
 
+has 'type_preserve' => ( is => 'rw',
+			 isa => 'Bool',
+			 default => 0 );
 
 has '_distinct' => ( is => 'rw',
 		     isa => 'Bool',

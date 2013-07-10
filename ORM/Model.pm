@@ -126,10 +126,18 @@ sub borrow_field
 {
 	my $self = shift;
 	my $attrname = shift;
-	my @more = @_;
+	my %more = @_;
+
+	if( $attrname )
+	{
+		unless( exists $more{ 'type_preserve' } )
+		{
+			$more{ 'type_preserve' } = 1;
+		}
+	}
 
 	my $rv = ORM::Model::Field -> new( model => ( ref( $self ) or $self ),
-					   @more );
+					   %more );
 	if( $attrname )
 	{
 		assert( my $attr = $self -> meta() -> find_attribute_by_name( $attrname ) );
@@ -159,6 +167,14 @@ sub create_one_return_value_item
 			{
 				foreach my $f ( @{ $fs } )
 				{
+
+					unless( $self -> this_is_field( $f ) )
+					{
+
+						$f = $self -> borrow_field( $f,
+									    select_as => &__get_db_field_name( $self -> meta() -> find_attribute_by_name( $f ) ) );
+					}
+
 					my $dbfield = $f -> select_as();
 					my $value = $f -> post_process() -> ( $rec -> { $dbfield } );
 
@@ -172,11 +188,21 @@ sub create_one_return_value_item
 			{
 				foreach my $f ( @{ $grpby } )
 				{
-					my $dbfield = &__get_db_field_name( $self -> meta() -> find_attribute_by_name( $f ) );
+					my $dbfield = undef;
+
+					if( $self -> this_is_field( $f ) )
+					{
+						$dbfield = $f -> select_as();
+					} else
+					{
+						$dbfield = &__get_db_field_name( $self -> meta() -> find_attribute_by_name( $f ) );
+					}
+
 					my $value = $rec -> { $dbfield };
 					$rv -> add_to_set( { model => ( ref( $self ) or $self ),
 							     dbfield => $dbfield,
 							     value => $value } );
+					
 				}
 			}
 		} else
@@ -279,7 +305,7 @@ sub _sql_func_on_attr
 	if( $args{ '_groupby' } )
 	{
 		$outcome = [];
-
+# TODO ?
 		while( my $data = $sth -> fetchrow_hashref() )
 		{
 			my $set = ORM::DataSet -> new();
@@ -428,11 +454,46 @@ sub __form_sql_func_sql_more_fields
 	if( my $t = $args{ '_groupby' } )
 	{
 
-		$rv .= join( ',', map { sprintf( "%s.%s",
-						 ( $args{ '_table_alias' }
-						   or
-						   $self -> _db_table() ),
-						 &__get_db_field_name( $self -> meta() -> find_attribute_by_name( $_ ) ) ) } @{ $t } );
+		my @sqls = ();
+
+		my $ta = ( $args{ '_table_alias' }
+			   or
+			   $self -> _db_table() );
+
+		foreach my $grp ( @{ $t } )
+		{
+			my $f = undef;
+
+			if( $self -> this_is_field( $grp ) )
+			{
+				my $use_ta = $ta;
+
+				if( $grp -> model() and ( $grp -> model() ne $self ) )
+				{
+					$use_ta = $self -> determine_ta_for_field_from_another_model( $grp,
+												      $args{ '_tables_to_select_from' } );
+
+				}
+				# $self -> assert_field_from_this_model( $grp );
+				$f = $grp -> form_field_name_for_db_select( $use_ta );
+
+			} else
+			{
+				$f = sprintf( "%s.%s",
+					      $ta,
+					      &__get_db_field_name( $self -> meta() -> find_attribute_by_name( $grp ) ) );
+			}
+			push @sqls, $f;
+		}
+
+
+
+		# $rv .= join( ',', map { sprintf( "%s.%s",
+		# 				 ( $args{ '_table_alias' }
+		# 				   or
+		# 				   $self -> _db_table() ),
+		# 				 &__get_db_field_name( $self -> meta() -> find_attribute_by_name( $_ ) ) ) } @{ $t } );
+		$rv .= join( ',', @sqls );
 		$rv .= ',';
 
 	}
@@ -995,7 +1056,7 @@ sub __collect_field_names
 	my $groupby = undef;
 	if( my $t = $args{ '_groupby' } )
 	{
-		my %t = map { $_ => 1 } @{ $t };
+		my %t = map { $_ => 1 } grep { not $self -> this_is_field( $_ ) } @{ $t };
 		$groupby = \%t;
 	}
 
@@ -1041,15 +1102,40 @@ QGVfwMGQEd15mtsn:
 
 	if( $field_set )
 	{
+		my $ta = ( $args{ '_table_alias' }
+			   or
+			   $self -> _db_table() );
+
 		foreach my $f ( @{ $field_set } )
 		{
-			my $select = $f -> form_field_name_for_db_select( $args{ '_table_alias' }
-									  or
-									  $self -> _db_table() );
+			unless( $self -> this_is_field( $f ) )
+			{
+				$f = $self -> borrow_field( $f,
+							    select_as => &__get_db_field_name( $self -> meta() -> find_attribute_by_name( $f ) ) );
+			}
+
+			my $select = $f -> form_field_name_for_db_select( $ta );
 
 			if( $f -> model() )
 			{
-				$self -> assert_field_from_this_model( $f );
+				unless( $f -> model() eq $self )
+				{
+					my $ta = $self -> determine_ta_for_field_from_another_model( $f,
+												     $args{ '_tables_to_select_from' } );
+					$select = $f -> form_field_name_for_db_select( $ta );
+				}
+
+				#print Data::Dumper::Dumper( \%args );
+	  # 			                         ],
+          # '_tables_to_select_from' => [
+          #                               'site_dealers T1',
+          #                               'keys_serial T2',
+          #                               'new_keys T3'
+          #                             ],
+
+
+
+				# $self -> assert_field_from_this_model( $f );
 
 			}
 			push @rv, $select . ' AS ' . $f -> select_as();
@@ -1057,6 +1143,29 @@ QGVfwMGQEd15mtsn:
 	}
 
 	return @rv;
+}
+
+sub determine_ta_for_field_from_another_model
+{
+	my ( $self, $field, $tables ) = @_;
+
+	my $rv = $field -> model() -> _db_table();
+
+	if( $tables )
+	{
+eocEfjT38ttaOGys:
+		foreach my $t ( @{ $tables } )
+		{
+			my ( $table, $alias ) = split( /\s+/, $t );
+			if( $table eq $rv )
+			{
+				$rv = $alias;
+				last eocEfjT38ttaOGys;
+			}
+		}
+	}
+	return $rv;
+
 }
 
 sub assert_field_from_this_model
@@ -1222,11 +1331,46 @@ sub __form_additional_sql_groupby
 	{
 		$rv = ' GROUP BY ';
 
-		$rv .= join( ',', map { sprintf( "%s.%s",
-						 ( $args{ '_table_alias' }
-						   or
-						   $self -> _db_table() ),
-						 &__get_db_field_name( $self -> meta() -> find_attribute_by_name( $_ ) ) ) } @{ $t } );
+
+		my @sqls = ();
+
+		my $ta = ( $args{ '_table_alias' }
+			   or
+			   $self -> _db_table() );
+
+		foreach my $grp ( @{ $t } )
+		{
+			my $f = undef;
+
+			if( $self -> this_is_field( $grp ) )
+			{
+				# $self -> assert_field_from_this_model( $grp );
+
+				my $use_ta = $ta;
+
+				if( $grp -> model() and ( $grp -> model() ne $self ) )
+				{
+					$use_ta = $self -> determine_ta_for_field_from_another_model( $grp,
+												      $args{ '_tables_to_select_from' } );
+				}
+
+				$f = $grp -> form_field_name_for_db_select( $use_ta );
+
+			} else
+			{
+				$f = sprintf( "%s.%s",
+					      $ta,
+					      &__get_db_field_name( $self -> meta() -> find_attribute_by_name( $grp ) ) );
+			}
+			push @sqls, $f;
+		}
+
+		$rv .= join( ',', @sqls );
+		# $rv .= join( ',', map { sprintf( "%s.%s",
+		# 				 ( $args{ '_table_alias' }
+		# 				   or
+		# 				   $self -> _db_table() ),
+		# 				 &__get_db_field_name( $self -> meta() -> find_attribute_by_name( $_ ) ) ) } @{ $t } );
 	}
 
 	return $rv;
@@ -1294,29 +1438,29 @@ fhFwaEknUtY5xwNr:
 
 		my ( $op, $col ) = ( undef, undef );
 		my $ta = ( $args{ '_table_alias' } or $self -> _db_table() );
-		( $op, $val, $col ) = $self -> determine_op_and_col_and_correct_val( $attr, $val, $ta, $dbh ); # this
-													       # is
-													       # not
-													       # a
-													       # structured
-													       # method,
-													       # this
-													       # is
-													       # just
-													       # code
-													       # moved
-													       # away
-													       # from
-													       # growing
-													       # too
-													       # big
-													       # function,
-													       # hilarious
-													       # comment
-													       # formatting
-													       # btw,
-													       # thx
-													       # emacs
+		( $op, $val, $col ) = $self -> determine_op_and_col_and_correct_val( $attr, $val, $ta, \%args, $dbh ); # this
+														       # is
+														       # not
+														       # a
+														       # structured
+														       # method,
+														       # this
+														       # is
+														       # just
+														       # code
+														       # moved
+														       # away
+														       # from
+														       # growing
+														       # too
+														       # big
+														       # function,
+														       # hilarious
+														       # comment
+														       # formatting
+														       # btw,
+														       # thx
+														       # emacs
 
 		if( $op )
 		{
@@ -1362,7 +1506,7 @@ sub this_is_field
 
 sub determine_op_and_col_and_correct_val
 {
-	my ( $self, $attr, $val, $ta, $dbh ) = @_;
+	my ( $self, $attr, $val, $ta, $args, $dbh ) = @_;
 
 	my $op = '=';
 	my $col = 'UNUSED';
@@ -1370,10 +1514,10 @@ sub determine_op_and_col_and_correct_val
 	if( $self -> this_is_field( $attr ) )
 	{
 		# field has base_attr actually, think abt it
-		if( $attr -> model() )
-		{
-			$self -> assert_field_from_this_model( $attr );
-		}
+		# if( $attr -> model() )
+		# {
+		# 	$self -> assert_field_from_this_model( $attr );
+		# }
 
 		if( ref( $val ) eq 'HASH' )
 		{
@@ -1401,11 +1545,19 @@ sub determine_op_and_col_and_correct_val
 			
 		} elsif( $self -> this_is_field( $val ) )
 		{ 
+			my $use_ta = $ta;
 			if( $val -> model() )
 			{
-				$self -> assert_field_from_this_model( $val );
+				# $self -> assert_field_from_this_model( $val );
+
+				unless( $val -> model() eq $self )
+				{
+					$use_ta = $self -> determine_ta_for_field_from_another_model( $val,
+												      $args -> { '_tables_to_select_from' } );
+				}
+
 			}
-			$val = $val -> form_field_name_for_db_select( $ta );
+			$val = $val -> form_field_name_for_db_select( $use_ta );
 		} else
 		{
 			$val = &ORM::Db::dbq( $val,
@@ -1470,11 +1622,19 @@ sub determine_op_and_col_and_correct_val
 			
 		} elsif( $self -> this_is_field( $val ) )
 		{ 
+			my $use_ta = $ta;
 			if( $val -> model() )
 			{
-				$self -> assert_field_from_this_model( $val );
+				unless( $val -> model() eq $self )
+				{
+					$use_ta = $self -> determine_ta_for_field_from_another_model( $val,
+												      $args -> { '_tables_to_select_from' } );
+				}
+
+				# $self -> assert_field_from_this_model( $val );
 			}
-			$val = $val -> form_field_name_for_db_select( $ta );
+			$val = $val -> form_field_name_for_db_select( $use_ta );
+
 		} else
 		{
 			$val = &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $val ),
