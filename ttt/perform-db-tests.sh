@@ -7,6 +7,8 @@
 FIND=/usr/bin/find
 PERL=/usr/bin/perl
 
+if [ $CREATETESTDB = 1 ] ; then
+
 echo "Creating test environment for LittleORM"
 
 admin_dbcommand "CREATE USER ${TESTDBUSER}"
@@ -28,6 +30,8 @@ echo
 user_dbcommand "\i ./test-db-fill.sql"
 assert $?
 
+fi
+
 # db created and filled
 
 echo
@@ -47,6 +51,8 @@ done
 
 # outta here
 
+if [ $DROPTESTDB = 1 ] ; then
+
 echo
 echo - SCRIPTS RUN COMPLETED, CLEANUP --------------------------------
 echo
@@ -57,6 +63,8 @@ assert $?
 
 admin_dbcommand "DROP USER ${TESTDBUSER}"
 assert $?
+
+fi
 
 echo "Normal exit"
 
