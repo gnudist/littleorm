@@ -22,7 +22,6 @@ foreach my $rec ( @authors )
 	ok( my $by_name = Models::Author -> get( his_name => $rec -> his_name() ),
 	    'able to select record by name' );
 
-	
 	is( $by_name -> id(), $rec -> id(), 'IDs match' )
 }
 
