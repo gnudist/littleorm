@@ -21,10 +21,19 @@ assert $?
 
 # db created, fill it
 
+echo
+echo - DB CREATED, FILLING -------------------------------------------
+echo
+
 user_dbcommand "\i ./test-db-fill.sql"
 assert $?
 
 # db created and filled
+
+echo
+echo - DB FILLED, RUNNING SCRIPTS ------------------------------------
+echo
+
 
 cd scripts/run/
 assert $?
@@ -37,6 +46,11 @@ $PERL ${ORM_TEST_SCRIPT}
 done
 
 # outta here
+
+echo
+echo - SCRIPTS RUN COMPLETED, CLEANUP --------------------------------
+echo
+
 
 admin_dbcommand "DROP DATABASE ${TESTDBNAME}"
 assert $?
