@@ -15,6 +15,7 @@ ok( scalar @authors, "Selected some records" );
 
 foreach my $rec ( @authors )
 {
+	is( ref( $rec ), 'Models::Author', 'correct class' );
 	ok( $rec -> id(), "record has id" );
 	ok( $rec -> his_name(), "record has name" );
 
