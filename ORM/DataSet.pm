@@ -10,6 +10,7 @@ use Moose;
 
  # 'model' => ( is => 'rw', isa => 'Str' );
  # 'dbfield' => ( is => 'rw', isa => 'Str' );
+ # 'base_attr' => ( is => 'rw', isa => 'Str' );
  # 'value' => ( is => 'rw' );
 
 
@@ -41,11 +42,11 @@ sub field
 
 	my $rv = $self -> field_by_name( $field -> select_as() );
 
-	if( ( my $m = $field -> model() ) and ( my $attr = $field -> base_attr() ) and $field -> type_preserve() )
-	{
-		my $attr = $m -> meta() -> find_attribute_by_name( $attr );
-		$rv = $m -> __lazy_build_value_actual( $attr, $rv );
-	}
+	# if( ( my $m = $field -> model() ) and ( my $attr = $field -> base_attr() ) and $field -> type_preserve() )
+	# {
+	# 	my $attr = $m -> meta() -> find_attribute_by_name( $attr );
+	# 	$rv = $m -> __lazy_build_value_actual( $attr, $rv );
+	# }
 
 	return $rv;
 }
@@ -64,10 +65,19 @@ OnR4gMKVoLEq1YDH:
 		{
 			if( my $m = $f -> { 'model' } )
 			{
-				my $attr = $m -> __find_attr_by_its_db_field_name( $f -> { 'dbfield' } );
+				my $attr = undef;
+
+				if( my $t = $f -> { 'base_attr' } )
+				{
+					assert( $attr = $m -> meta() -> find_attribute_by_name( $t ) );#, $m . " - " . $t );
+				} else
+				{
+					$attr = $m -> __find_attr_by_its_db_field_name( $f -> { 'dbfield' } );
+				}
+
 				if( $attr
 				    and
-				    ( $attr -> name() eq $name ) )
+				    ( $f -> { 'dbfield' } eq $name ) )
 				{
 				# say no more!
 					$found = 1;

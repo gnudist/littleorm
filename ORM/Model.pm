@@ -11,6 +11,7 @@ has '_rec' => ( is => 'rw', isa => 'HashRef', required => 1, metaclass => 'ORM::
 use Carp::Assert 'assert';
 use Scalar::Util 'blessed';
 use Module::Load ();
+use ORM::Model::Field ();
 
 sub _db_table{ assert( 0, '" _db_table " method must be redefined.' ) }
 
@@ -177,6 +178,7 @@ sub create_one_return_value_item
 					my $value = $f -> post_process() -> ( $rec -> { $dbfield } );
 
 					$rv -> add_to_set( { model => $f -> model(),
+							     base_attr => $f -> base_attr(),
 							     dbfield => $dbfield,
 							     value => $value } );
 				}
@@ -186,18 +188,22 @@ sub create_one_return_value_item
 			{
 				foreach my $f ( @{ $grpby } )
 				{
-					my $dbfield = undef;
+					my ( $dbfield, $post_process, $base_attr, $model ) = ( undef, undef, undef, ( ref( $self ) or $self ) );
 
 					if( ORM::Model::Field -> this_is_field( $f ) )
 					{
 						$dbfield = $f -> select_as();
+						$base_attr = $f -> base_attr();
+						$post_process = $f -> post_process();
+						$model = $f -> model();
 					} else
 					{
 						$dbfield = &__get_db_field_name( $self -> meta() -> find_attribute_by_name( $f ) );
 					}
 
-					my $value = $rec -> { $dbfield };
-					$rv -> add_to_set( { model => ( ref( $self ) or $self ),
+					my $value = ( $post_process ? $post_process -> ( $rec -> { $dbfield } ) : $rec -> { $dbfield } );
+					$rv -> add_to_set( { model => $model,
+							     base_attr => $base_attr,
 							     dbfield => $dbfield,
 							     value => $value } );
 				}
@@ -973,7 +979,7 @@ sub __form_delete_sql
 sub __should_ignore_on_write
 {
 	my ( $self, $attr ) = @_;
-	my $rv = $self -> __should_ignore();
+	my $rv = $self -> __should_ignore( $attr );
 
 	unless( $rv )
 	{
