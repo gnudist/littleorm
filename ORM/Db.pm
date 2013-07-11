@@ -2,7 +2,7 @@ package ORM::Db;
 
 my $cached_dbh = undef;
 
-use Carp::Assert;
+use Carp::Assert 'assert';
 
 sub dbh_is_ok
 {
