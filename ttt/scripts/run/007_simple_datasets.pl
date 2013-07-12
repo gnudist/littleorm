@@ -49,6 +49,18 @@ use ORM::DataSet ();
 	}
 }
 
+{
+	ok( my $now = ORM::Model::Field -> new( db_func => 'now' ), 'new field ok' );
+	isa_ok( $now, 'ORM::Model::Field', 'class is right' );
+	ok( $now -> select_as(), 'has select as' );
+
+	ok( my $ds = Models::Author -> get( _fieldset => [ $now ] ), 'got something' );
+	isa_ok( $ds, 'ORM::DataSet', 'its DS' );
+
+	ok( $ds -> field( $now ), 'field has value (date): ' . $ds -> field( $now ) );
+
+}
+
 
 $dbh -> disconnect();
 done_testing();
