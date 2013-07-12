@@ -27,6 +27,5 @@ foreach my $rec ( @authors )
 }
 
 $dbh -> disconnect();
-
 done_testing();
 exit( 0 );

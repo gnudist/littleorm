@@ -110,6 +110,5 @@ use Models::Author ();
 }
 
 $dbh -> disconnect();
-
 done_testing();
 exit( 0 );

@@ -42,14 +42,23 @@ echo
 cd scripts/run/
 assert $?
 
+STATUS_CODE=0
 for ORM_TEST_SCRIPT in $( $FIND . -type f -name '*.pl' ) ; do
 
 echo ${ORM_TEST_SCRIPT}
 $PERL ${ORM_TEST_SCRIPT}
+STATUS_CODE=$(($STATUS_CODE+$?))
 
 done
 
 # outta here
+
+
+if [ $STATUS_CODE != 0 ] ; then
+echo
+echo - THERE WERE ERRORS! --------------------------------------------
+echo
+fi
 
 if [ $DROPTESTDB = 1 ] ; then
 

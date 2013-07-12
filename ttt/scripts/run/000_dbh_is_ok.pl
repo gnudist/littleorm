@@ -15,6 +15,5 @@ my $dbh = &TestDB::dbconnect();
 ok( ORM::Db::dbh_is_ok( $dbh ), 'LittleORM likes this $dbh' );
 
 $dbh -> disconnect();
-
 done_testing();
 exit( 0 );

@@ -43,6 +43,5 @@ foreach my $book ( @books )
 }
 
 $dbh -> disconnect();
-
 done_testing();
 exit( 0 );

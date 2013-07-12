@@ -45,6 +45,6 @@ use ORM::Clause ();
 }
 
 
-
+$dbh -> disconnect();
 done_testing();
 exit( 0 );
