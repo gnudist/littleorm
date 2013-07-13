@@ -1,3 +1,5 @@
+use strict;
+
 package ORM::Db;
 
 my $cached_dbh = undef;

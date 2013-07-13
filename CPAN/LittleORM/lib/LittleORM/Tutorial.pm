@@ -854,6 +854,11 @@ You can also look for information at:
 
 =over 4
 
+
+=item * Project home:
+
+L<https://github.com/gnudist/littleorm>
+
 =item * RT: CPAN's request tracker (report bugs here)
 
 L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=LittleORM>

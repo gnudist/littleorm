@@ -2,115 +2,8 @@
 
 use strict;
 
-=head1 NAME
-
-LittleORM - ORM for Perl with Moose.
-
-=head1 VERSION
-
-Version 0.09
-
-=cut
-
-=head1 SYNOPSIS
-
-Please refer to L<LittleORM::Tutorial> for thorough description of LittleORM.
-
-=cut
-
-=head1 AUTHOR
-
-Eugene Kuzin, C<< <eugenek at 45-98.org> >>, JID: C<< <gnudist at jabber.ru> >>
-with significant contributions by
-Kain Winterheart, C<< < kain.winterheart at gmail.com> >>
-
-
-=head1 BUGS
-
-Please report any bugs or feature requests to C<bug-littleorm at
-rt.cpan.org>, or through the web interface at
-L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=LittleORM>.  I will
-be notified, and then you'll automatically be notified of progress on
-your bug as I make changes.
-
-=head1 SUPPORT
-
-You can find documentation for this module with the perldoc command.
-
-    perldoc LittleORM
-
-
-You can also look for information at:
-
-=over 4
-
-=item * RT: CPAN's request tracker (report bugs here)
-
-L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=LittleORM>
-
-=item * AnnoCPAN: Annotated CPAN documentation
-
-L<http://annocpan.org/dist/LittleORM>
-
-=item * CPAN Ratings
-
-L<http://cpanratings.perl.org/d/LittleORM>
-
-=item * Search CPAN
-
-L<http://search.cpan.org/dist/LittleORM/>
-
-=back
-
-
-=head1 ACKNOWLEDGEMENTS
-
-
-=head1 LICENSE AND COPYRIGHT
-
-Copyright 2013 Eugene Kuzin.
-
-This program is free software; you can redistribute it and/or modify it
-under the terms of the the Artistic License (2.0). You may obtain a
-copy of the full license at:
-
-L<http://www.perlfoundation.org/artistic_license_2_0>
-
-Any use, modification, and distribution of the Standard or Modified
-Versions is governed by this Artistic License. By using, modifying or
-distributing the Package, you accept this license. Do not use, modify,
-or distribute the Package, if you do not accept this license.
-
-If your Modified Version has been derived from a Modified Version made
-by someone other than you, you are nevertheless required to ensure that
-your Modified Version complies with the requirements of this license.
-
-This license does not grant you the right to use any trademark, service
-mark, tradename, or logo of the Copyright Holder.
-
-This license includes the non-exclusive, worldwide, free-of-charge
-patent license to make, have made, use, offer to sell, sell, import and
-otherwise transfer the Package with respect to any patent claims
-licensable by the Copyright Holder that are necessarily infringed by the
-Package. If you institute patent litigation (including a cross-claim or
-counterclaim) against any party alleging that the Package constitutes
-direct or contributory patent infringement, then this Artistic License
-to you shall terminate on the date that such litigation is filed.
-
-Disclaimer of Warranty: THE PACKAGE IS PROVIDED BY THE COPYRIGHT HOLDER
-AND CONTRIBUTORS "AS IS' AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES.
-THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
-PURPOSE, OR NON-INFRINGEMENT ARE DISCLAIMED TO THE EXTENT PERMITTED BY
-YOUR LOCAL LAW. UNLESS REQUIRED BY LAW, NO COPYRIGHT HOLDER OR
-CONTRIBUTOR WILL BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, OR
-CONSEQUENTIAL DAMAGES ARISING IN ANY WAY OUT OF THE USE OF THE PACKAGE,
-EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-
-=cut
-
-
 package LittleORM::Model;
+use LittleORM::Model::Field ();
 
 # Extend LittleORM::Model capabilities with filter support:
 
@@ -224,10 +117,18 @@ sub filter
 
 		if( $arg eq '_return' )
 		{
-			assert( $self -> meta() -> find_attribute_by_name( $val ), sprintf( 'Incorrect %s attribute "%s" in return',
+			if( LittleORM::Model::Field -> this_is_field( $val ) )
+			{
+				$val -> assert_model( $class );
+				$rv -> returning_field( $val );
+			} else
+			{
+
+				assert( $self -> meta() -> find_attribute_by_name( $val ), sprintf( 'Incorrect %s attribute "%s" in return',
 											    $class,
 											    $val ) );
-			$rv -> returning( $val ); 
+				$rv -> returning( $val ); 
+			}
 
 		} elsif( $arg eq '_sortby' )
 		{
@@ -281,6 +182,7 @@ use Moose;
 has 'model' => ( is => 'rw', isa => 'Str', required => 1 );
 has 'table_alias' => ( is => 'rw', isa => 'Str', default => \&get_uniq_alias_for_table );
 has 'returning' => ( is => 'rw', isa => 'Maybe[Str]' ); # return column name for connecting with other filter
+has 'returning_field' => ( is => 'rw', isa => 'LittleORM::Model::Field' );
 has 'clauses' => ( is => 'rw', isa => 'ArrayRef[LittleORM::Clause]', default => sub { [] } );
 
 use Carp::Assert 'assert';
@@ -305,38 +207,75 @@ sub form_conn_sql
 	my $conn_sql = '';
 
 	{
-		assert( my $attr1 = $self -> model() -> meta() -> find_attribute_by_name( $arg ),
-			'Injalid attribute 1 in filter: ' . $arg );
+		my $ta1 = $self -> table_alias();
+		my $ta2 = $filter -> table_alias();
 
-		assert( my $attr2 = $filter -> model() -> meta() -> find_attribute_by_name( $filter -> get_returning() ),
-			'Injalid attribute 2 in filter (much rarer case)' );
-
-		if( my $fk = &LittleORM::Model::__descr_attr( $attr1, 'foreign_key' ) )
-		{
-			if( ( $fk eq $filter -> model() ) 
-			    and
-			    ( my $fkattr = &LittleORM::Model::__descr_attr( $attr1, 'foreign_key_attr_name' ) ) )
-			{
-				assert( $attr2 = $filter -> model() -> meta() -> find_attribute_by_name( $fkattr ),
-					'Injalid attribute 2 in filter (subcase of much rarer case)' );
-			}
-		}
-
-		my $attr1_t = &LittleORM::Model::__descr_attr( $attr1, 'db_field_type' );
-		my $attr2_t = &LittleORM::Model::__descr_attr( $attr2, 'db_field_type' );
-
+		my $attr1_t = '';
+		my $attr2_t = '';
 		my $cast = '';
 
-		if( $attr1_t and $attr2_t and ( $attr1_t ne $attr2_t ) )
+		my $arg1 = $arg;
+		my $arg2 = $filter -> get_returning();
+
+		my ( $f1, $f2 ) = ( '', '' );
+
 		{
-			$cast = '::' . $attr1_t;
+			my $attr1 = $self -> model() -> meta() -> find_attribute_by_name( $arg1 );
+
+			assert( ( $attr1 or LittleORM::Model::Field -> this_is_field( $arg1 ) ),
+				'Injalid attribute 1 in filter: ' . $arg1 );
+
+			my $attr2 = $filter -> model() -> meta() -> find_attribute_by_name( $arg2 );
+			assert( ( $attr2 or LittleORM::Model::Field -> this_is_field( $arg2 ) ),
+				'Injalid attribute 2 in filter (much rarer case)' );
+
+			
+			if( ( $attr1 and $attr2 ) and ( my $fk = &LittleORM::Model::__descr_attr( $attr1, 'foreign_key' ) ) )
+			{
+				if( ( $fk eq $filter -> model() ) 
+				    and
+				    ( my $fkattr = &LittleORM::Model::__descr_attr( $attr1, 'foreign_key_attr_name' ) ) )
+				{
+					assert( $attr2 = $filter -> model() -> meta() -> find_attribute_by_name( $fkattr ),
+						'Injalid attribute 2 in filter (subcase of much rarer case)' );
+				}
+			}
+			if( $attr1 )
+			{
+				$attr1_t = &LittleORM::Model::__descr_attr( $attr1, 'db_field_type' );
+				$f1 = sprintf( "%s.%s",
+					       $ta1,
+					       &LittleORM::Model::__get_db_field_name( $attr1 ) );
+				
+			} else
+			{
+				$f1 = $arg1 -> form_field_name_for_db_select( $ta1 );
+			}
+
+			if( $attr2 )
+			{
+				$attr2_t = &LittleORM::Model::__descr_attr( $attr2, 'db_field_type' );
+				$f2 = sprintf( "%s.%s",
+					       $ta2,
+					       &LittleORM::Model::__get_db_field_name( $attr2 ) );
+
+			} else
+			{
+				$f2 = $arg2 -> form_field_name_for_db_select( $ta2 );
+			}
+
+			if( $attr1_t and $attr2_t and ( $attr1_t ne $attr2_t ) )
+			{
+				$cast = '::' . $attr1_t;
+			}
+
 		}
 
-		$conn_sql = sprintf( "%s.%s=%s.%s%s",
-				     $self -> table_alias(),
-				     &LittleORM::Model::__get_db_field_name( $attr1 ),
-				     $filter -> table_alias(),
-				     &LittleORM::Model::__get_db_field_name( $attr2 ),
+
+
+		$conn_sql = sprintf( "%s=%s%s",
+				     $f1,
+				     $f2,				     
 				     $cast );
 	}
 
@@ -507,8 +446,15 @@ sub get_returning
 	my $self = shift;
 
 	my $rv = $self -> returning();
+	
+	if( $rv )
+	{
+		1;
+	} elsif( my $rv_f = $self -> returning_field() )
+	{
+		$rv = $rv_f;
 
-	unless( $rv )
+	} else
 	{
 		assert( my $pk = $self -> model() -> __find_primary_key(),
 			sprintf( 'Model %s must have PK or specify "returning" manually',
