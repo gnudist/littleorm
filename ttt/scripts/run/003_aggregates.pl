@@ -109,6 +109,46 @@ use Models::Author ();
 
 }
 
+{
+
+	my $pricef = Models::Book -> borrow_field( 'price',
+						   'db_func' => 'min' );
+
+	my @recs = Models::Book -> get_many( _fieldset => [ $pricef ],
+					     _groupby => [ 'author' ] );
+
+	is( scalar @recs, Models::Author -> count(), "because every author has at leas 1 book" );
+
+	foreach my $rec ( @recs )
+	{
+		isa_ok( $rec, 'ORM::DataSet', 'this is ds' );
+		isa_ok( $rec -> author(), 'Models::Author', 'author is there' );
+		ok( $rec -> field( $pricef ), 'aggregate is there' );
+	}
+
+}
+
+
+{
+	my $dsarr = Models::Book -> max( 'price',
+					 _groupby => [ 'author' ] );
+
+	map { is( ref( $_ ), 'ORM::DataSet', 'count with _groupby returns ORM::DataSet' ) } @{ $dsarr };
+
+	ok( scalar @{ $dsarr } == Models::Author -> count(), 'every author has a book' );
+
+	foreach my $ds ( @{ $dsarr } )
+	{
+		isa_ok( $ds -> author(), 'Models::Author', 'valid author object: ' . $ds -> author() -> his_name() );
+		ok( $ds -> max(), 'value is there (max price): ' . $ds -> max() );
+		
+	}
+
+	
+
+}
+
+
 $dbh -> disconnect();
 done_testing();
 exit( 0 );

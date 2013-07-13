@@ -16,4 +16,6 @@ has 'author' => ( is => 'rw',
 		  metaclass => 'ORM::Meta::Attribute',
 		  description => { foreign_key => 'Models::Author' } );
 
+has 'price' => ( is => 'rw', isa => 'Str' );
+
 42;
