@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 use strict;
-package LitleORM::Meta::Role;
+package LittleORM::Meta::Role;
 
 use Moose::Role;
 
@@ -43,7 +43,7 @@ Please refer to L<LittleORM::Tutorial> for thorough description of LittleORM.
 
 Eugene Kuzin, C<< <eugenek at 45-98.org> >>, JID: C<< <gnudist at jabber.ru> >>
 with significant contributions by
-Kain Winterheart, C<< < kain.winterheart at gmail.com> >>
+Kain Winterheart, C<< <kain.winterheart at gmail.com> >>
 
 
 =head1 BUGS

@@ -829,6 +829,8 @@ Look here: https://github.com/gnudist/littleorm/tree/master/examples
 =head1 AUTHOR
 
 Eugene Kuzin, C<< <eugenek at 45-98.org> >>, JID: C<< <gnudist at jabber.ru> >>
+with significant contributions by
+Kain Winterheart, C<< <kain.winterheart at gmail.com> >>
 
 =head1 BUGS
 
@@ -924,4 +926,4 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =cut
 
-1; # End of LittleORM
+42; # End of LittleORM
