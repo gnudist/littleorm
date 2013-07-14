@@ -30,7 +30,7 @@ use ORM::Clause ();
 
 {
 
-	ok( my $af = Models::Author -> f( his_name => "John Smith" ), 'able to create filter object' );
+	ok( my $af = Models::Author -> f( his_name => [ "John Smith", "John Smith Jr." ] ), 'able to create filter object' );
 	is( ref( $af ), 'ORM::Filter', 'and it is actually a filter' );
 	
 	ok( my $bf = Models::Book -> f( _exists => $af ), 'able to create filter object' );
