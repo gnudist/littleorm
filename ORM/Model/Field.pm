@@ -144,5 +144,14 @@ sub form_field_name_for_db_select
 
 }
 
+sub form_field_name_for_db_select_with_as
+{
+	my $self = shift;
+
+	my $rv = $self -> form_field_name_for_db_select( @_ ) . ' AS ' . $self -> select_as();
+
+	return $rv;
+}
+
 
 394041;

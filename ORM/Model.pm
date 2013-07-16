@@ -461,7 +461,7 @@ sub __form_sql_func_sql_more_fields
 					$use_ta = $grp -> determine_ta_for_field_from_another_model( $args{ '_tables_to_select_from' } );
 
 				}
-				$f = $grp -> form_field_name_for_db_select( $use_ta );
+				$f = $grp -> form_field_name_for_db_select_with_as( $use_ta );#form_field_name_for_db_select( $use_ta );
 
 			} else
 			{
@@ -1080,17 +1080,17 @@ QGVfwMGQEd15mtsn:
 							    select_as => &__get_db_field_name( $self -> meta() -> find_attribute_by_name( $f ) ) );
 			}
 
-			my $select = $f -> form_field_name_for_db_select( $ta );
+			my $select = $f -> form_field_name_for_db_select_with_as( $ta );
 
 			if( $f -> model() )
 			{
 				unless( $f -> model() eq $self )
 				{
 					my $ta = $f -> determine_ta_for_field_from_another_model( $args{ '_tables_to_select_from' } );
-					$select = $f -> form_field_name_for_db_select( $ta );
+					$select = $f -> form_field_name_for_db_select_with_as( $ta );
 				}
 			}
-			push @rv, $select . ' AS ' . $f -> select_as();
+			push @rv, $select;# . ' AS ' . $f -> select_as();
 		}
 	}
 

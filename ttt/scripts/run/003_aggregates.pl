@@ -54,8 +54,6 @@ use Models::Author ();
 
 }
 
-
-
 {
 	my $dsarr = Models::Book -> count( _groupby => [ 'author' ] );
 
@@ -77,7 +75,8 @@ use Models::Author ();
 }
 
 {
-	ok( my $afield = Models::Book -> borrow_field( 'author' ), '(field) can borrow a field' );
+	ok( my $afield = Models::Book -> borrow_field( 'author',
+						       select_as => 'author' ), '(field) can borrow a field' );
 
 	my $dsarr = Models::Book -> count( _groupby => [ $afield ] );
 

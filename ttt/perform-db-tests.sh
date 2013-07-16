@@ -43,7 +43,7 @@ cd scripts/run/
 assert $?
 
 STATUS_CODE=0
-for ORM_TEST_SCRIPT in $( $FIND . -type f -name '*.pl' ) ; do
+for ORM_TEST_SCRIPT in $( $FIND . -type f -name '*.pl' | sort ) ; do
 
 echo ${ORM_TEST_SCRIPT}
 $PERL ${ORM_TEST_SCRIPT}
