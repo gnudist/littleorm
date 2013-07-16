@@ -13,7 +13,7 @@ no Moose::Role;
 
 package LittleORM;
 
-our $VERSION = '0.10';
+our $VERSION = '0.11';
 
 
 
