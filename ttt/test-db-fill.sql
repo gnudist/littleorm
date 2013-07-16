@@ -15,7 +15,7 @@ ALTER SEQUENCE author_id_seq RESTART WITH 100;
 CREATE TABLE book
 (
 	id serial NOT NULL PRIMARY KEY,
-	title varchar NOT NULL UNIQUE,
+	title varchar NOT NULL,
 	author INT NOT NULL REFERENCES author(id),
 	price int not null
 );
