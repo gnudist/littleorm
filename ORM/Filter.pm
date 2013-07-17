@@ -100,74 +100,11 @@ sub filter
 {
 	my ( $self, @args ) = @_;
 
-	my @filters = ();
-
-	my @clauseargs = ( _where => '1=1' );
-
 	my $class = ( ref( $self ) or $self );
 
 	my $rv = ORM::Filter -> new( model => $class );
 
-	@args = @{ $self -> _disambiguate_filter_args( \@args ) };
-	assert( scalar @args % 2 == 0 );
-
-	while( my $arg = shift @args )
-	{
-		my $val = shift @args;
-
-		if( $arg eq '_return' )
-		{
-			if( ORM::Model::Field -> this_is_field( $val ) )
-			{
-				$val -> assert_model( $class );
-				$rv -> returning_field( $val );
-			} else
-			{
-
-				assert( $self -> meta() -> find_attribute_by_name( $val ), sprintf( 'Incorrect %s attribute "%s" in return',
-											    $class,
-											    $val ) );
-				$rv -> returning( $val ); 
-			}
-
-		} elsif( $arg eq '_sortby' )
-		{
-			assert( 0, '_sortby is not allowed in filter' );
-
-		} elsif( $arg eq '_exists' )
-		{
-			assert( $val and ( ( ref( $val ) eq 'HASH' )
-					   or
-					   $val -> isa( 'ORM::Filter' ) ) );
-			$rv -> connect_filter_exists( 'EXISTS', $val );
-
-		} elsif( $arg eq '_not_exists' )
-		{
-			assert( $val and $val -> isa( 'ORM::Filter' ) );
-			$rv -> connect_filter_exists( 'NOT EXISTS', $val );
-
-		} elsif( blessed( $val ) and $val -> isa( 'ORM::Filter' ) )
-		{
-
-			$rv -> connect_filter( $arg => $val );
-
-		} elsif( blessed( $val ) and $val -> isa( 'ORM::Clause' ) )
-		{
-			$rv -> push_clause( $val );
-		} else
-		{
-			push @clauseargs, ( $arg, $val );
-		}
-
-	}
-
-	{
-		my $clause = ORM::Clause -> new( model => $class,
-						 cond => \@clauseargs,
-						 table_alias => $rv -> table_alias() );
-
-		$rv -> push_clause( $clause );
-	}
+	$rv -> push_anything_appropriate( @args );
 
 	return $rv;
 }
@@ -196,6 +133,78 @@ use List::MoreUtils 'uniq';
 		$counter ++;
 
 		return "T" . $counter;
+	}
+
+}
+
+
+sub push_anything_appropriate
+{
+	my $self = shift;
+	my @args = @_;
+
+	my @clauseargs = ( _where => '1=1' );
+	assert( my $class = $self -> model(), 'must know my model' );
+
+	@args = @{ $self -> model() -> _disambiguate_filter_args( \@args ) };
+	assert( scalar @args % 2 == 0 );
+
+	while( my $arg = shift @args )
+	{
+		my $val = shift @args;
+
+		if( $arg eq '_return' )
+		{
+			if( ORM::Model::Field -> this_is_field( $val ) )
+			{
+				$val -> assert_model( $class );
+				$self -> returning_field( $val );
+			} else
+			{
+
+				assert( $self -> meta() -> find_attribute_by_name( $val ), sprintf( 'Incorrect %s attribute "%s" in return',
+											    $class,
+											    $val ) );
+				$self -> returning( $val ); 
+			}
+
+		} elsif( $arg eq '_sortby' )
+		{
+			assert( 0, '_sortby is not allowed in filter' );
+
+		} elsif( $arg eq '_exists' )
+		{
+			assert( $val and ( ( ref( $val ) eq 'HASH' )
+					   or
+					   $val -> isa( 'ORM::Filter' ) ) );
+			$self -> connect_filter_exists( 'EXISTS', $val );
+
+		} elsif( $arg eq '_not_exists' )
+		{
+			assert( $val and $val -> isa( 'ORM::Filter' ) );
+			$self -> connect_filter_exists( 'NOT EXISTS', $val );
+
+		} elsif( blessed( $val ) and $val -> isa( 'ORM::Filter' ) )
+		{
+
+			$self -> connect_filter( $arg => $val );
+
+		} elsif( blessed( $val ) and $val -> isa( 'ORM::Clause' ) )
+		{
+			$self -> push_clause( $val );
+		} else
+		{
+			push @clauseargs, ( $arg, $val );
+		}
+
+	}
+
+	{
+		my $clause = ORM::Clause -> new( model => $class,
+						 cond => \@clauseargs,
+						 table_alias => $self -> table_alias() );
+
+		$self -> push_clause( $clause );
 	}
 
 }
