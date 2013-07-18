@@ -66,4 +66,20 @@ INSERT INTO sale_log (id,book) VALUES (18,9);
 
 ALTER SEQUENCE sale_log_id_seq RESTART WITH 100;
 
+
+CREATE TABLE publisher (
+id serial NOT NULL PRIMARY KEY,
+orgname varchar );
+
+ALTER SEQUENCE publisher_id_seq RESTART WITH 100;
+
+CREATE TABLE publication (
+id serial NOT NULL PRIMARY KEY,
+book int not null references book(id),
+published bool NOT NULL DEFAULT false,
+created timestamp not null default NOW(),
+publisher int not null REFERENCES publisher(id) );
+
+ALTER SEQUENCE publication_id_seq RESTART WITH 100;
+
 COMMIT;

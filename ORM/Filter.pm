@@ -162,9 +162,9 @@ sub push_anything_appropriate
 			} else
 			{
 
-				assert( $self -> meta() -> find_attribute_by_name( $val ), sprintf( 'Incorrect %s attribute "%s" in return',
-											    $class,
-											    $val ) );
+				assert( $self -> model() -> meta() -> find_attribute_by_name( $val ), sprintf( 'Incorrect %s attribute "%s" in return',
+													       $class,
+													       $val ) );
 				$self -> returning( $val ); 
 			}
 
