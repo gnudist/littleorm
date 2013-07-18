@@ -71,6 +71,8 @@ CREATE TABLE publisher (
 id serial NOT NULL PRIMARY KEY,
 orgname varchar );
 
+INSERT INTO publisher VALUES (1, 'Major Book House' );
+
 ALTER SEQUENCE publisher_id_seq RESTART WITH 100;
 
 CREATE TABLE publication (
