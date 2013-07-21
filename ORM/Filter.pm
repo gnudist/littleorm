@@ -121,6 +121,7 @@ has 'table_alias' => ( is => 'rw', isa => 'Str', default => \&get_uniq_alias_for
 has 'returning' => ( is => 'rw', isa => 'Maybe[Str]' ); # return column name for connecting with other filter
 has 'returning_field' => ( is => 'rw', isa => 'ORM::Model::Field' );
 has 'clauses' => ( is => 'rw', isa => 'ArrayRef[ORM::Clause]', default => sub { [] } );
+has 'joined_tables' => ( is => 'rw', isa => 'ArrayRef[HashRef]', default => sub { [] } );
 
 use Carp::Assert 'assert';
 use List::MoreUtils 'uniq';
@@ -311,6 +312,31 @@ sub connect_filter
 	}
 }
 
+sub connect_filter_complex # with method specification
+{
+	my $self = shift;
+
+	my ( $arg, $filter ) = $self -> sanitize_args_for_connecting( @_ );
+
+	map { $self -> push_clause( $_, $filter -> table_alias() ) } @{ $filter -> clauses() };
+
+	my $conn_sql = $self -> form_conn_sql( $arg, $filter );
+
+	my %join_spec = ( type => 'JOIN',
+			  to => { $self -> model() -> _db_table() => $self -> table_alias() },
+			  table => { $filter -> model() -> _db_table() => $filter -> table_alias() },
+			  on => $conn_sql ); 
+
+	$self -> _self_add_table_join( \%join_spec );
+
+}
+
+sub _self_add_table_join
+{
+	my ( $self, $join_spec ) = @_;
+
+	push @{ $self -> joined_tables() }, $join_spec;
+}
 
 sub sanitize_args_for_connecting
 {
@@ -327,13 +353,11 @@ sub sanitize_args_for_connecting
 
 	unless( $filter )
 	{
-
 		if( $arg and blessed( $arg ) and $arg -> isa( 'ORM::Filter' ) )
 		{
 			my $args = $self -> model() -> _disambiguate_filter_args( [ $arg ] );
 
 			( $arg, $filter ) = @{ $args };
-
 
 		} else
 		{
@@ -342,9 +366,7 @@ sub sanitize_args_for_connecting
 	}
 
 	return ( $arg, $filter );
-
 }
-
 
 sub connect_filter_exists
 {
@@ -501,13 +523,74 @@ sub all_tables_used_in_filter
 
 	my %rv = ();
 
+J1Dz1VhnaYMJllvy:
 	foreach my $c ( @{ $self -> clauses() } )
 	{
-		assert( $c -> table_alias(), 'Unknown clause origin' );
-		$rv{ $c -> table_alias() } = $c -> model() -> _db_table();
+		my $t = $c -> model() -> _db_table();
+		assert( my $ta = $c -> table_alias(), 'Unknown clause origin' );
+
+		foreach my $join_spec ( @{ $self -> joined_tables() } )
+		{
+			if( exists $join_spec -> { 'table' } -> { $t } )
+			{
+				next J1Dz1VhnaYMJllvy;
+			}
+		}
+		$rv{ $ta } = $t;
 	}
 
 	return %rv;
+}
+
+sub all_tables_used_in_filter_val_as_hr
+{
+	my $self = shift;
+
+	my %tables = $self -> all_tables_used_in_filter();
+	my %rv = ();
+
+	while( my ( $ta, $t ) = each %tables )
+	{
+		$rv{ $ta } = { table => $t,
+			       spec => sprintf( "%s %s", $t, $ta ) };
+	}
+
+	return %rv;
+}
+
+sub all_tables_used_in_filter_with_joins_sql
+{
+	my $self = shift;
+
+	my %t = $self -> all_tables_used_in_filter_val_as_hr();
+	my $joined = $self -> joined_tables();
+
+
+# 	print "USED: " . Data::Dumper::Dumper( \%t );
+# 	print "JOINED: " . Data::Dumper::Dumper( $joined );
+
+# USED: $VAR1 = {
+#           'T2' => {
+#                     'spec' => 'book T2',
+#                     'table' => 'book'
+#                   }
+#         };
+# JOINED: $VAR1 = {
+#           'T2' => {
+#                     'on' => 'T2.author=T1.id',
+#                     'to' => {
+#                               'book' => 'T2'
+#                             },
+#                     'table' => {
+#                                  'author' => 'T1'
+#                                },
+#                     'type' => 'JOIN'
+#                   }
+#         };
+
+
+
+
 }
 
 sub get_many

@@ -12,6 +12,19 @@ INSERT INTO author (id,aname) values ( 3, 'Anna Dickson' );
 
 ALTER SEQUENCE author_id_seq RESTART WITH 100;
 
+create table author_more_info
+(
+	id serial NOT NULL PRIMARY KEY,
+	author INT NOT NULL REFERENCES author(id),
+	birthday timestamp,
+	dead timestamp,
+	married bool,
+	country int
+);
+
+ALTER SEQUENCE author_more_info_id_seq RESTART WITH 100;
+
+
 CREATE TABLE book
 (
 	id serial NOT NULL PRIMARY KEY,
