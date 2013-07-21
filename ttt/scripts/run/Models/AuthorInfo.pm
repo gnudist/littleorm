@@ -13,6 +13,9 @@ has 'author' => ( is => 'rw',
 		  metaclass => 'ORM::Meta::Attribute',
 		  description => { foreign_key => 'Models::Author' } );
 
+has 'married' => ( is => 'rw',
+		   isa => 'Bool' );
+
 # TODO
 
 42;

@@ -313,24 +313,80 @@ sub connect_filter
 	map { $self -> _self_add_table_join( $_ ) } @{ $filter -> joined_tables() };
 }
 
-sub connect_filter_complex # join with method specification (TODO, hardcoded JOIN now)
+sub _valid_join_type
+{
+	my ( $self, $jtype ) = @_;
+
+	my @known = ( 'JOIN', 'LEFT JOIN', 'RIGHT JOIN', 'LEFT OUTER JOIN', 'RIGHT OUTER JOIN', 'MEGAJOIN 3000' );
+	my %known = map { $_ => 1 } @known;
+
+	my $rv = 0;
+
+	if( exists $known{ uc( $jtype ) } )
+	{
+		$rv = 1;
+	}
+
+	return $rv;
+}
+
+sub connect_filter_right_join
 {
 	my $self = shift;
+	$self -> connect_filter_complex( 'RIGHT JOIN', @_ );
+}
 
-	my ( $arg, $filter ) = $self -> sanitize_args_for_connecting( @_ );
+sub connect_filter_right_outer_join
+{
+	my $self = shift;
+	$self -> connect_filter_complex( 'RIGHT OUTER JOIN', @_ );
+}
 
-	map { $self -> push_clause( $_, $filter -> table_alias() ) } @{ $filter -> clauses() };
+sub connect_filter_left_join
+{
+	my $self = shift;
+	$self -> connect_filter_complex( 'LEFT JOIN', @_ );
+}
 
-	my $conn_sql = $self -> form_conn_sql( $arg, $filter );
+sub connect_filter_left_outer_join
+{
+	my $self = shift;
+	$self -> connect_filter_complex( 'LEFT OUTER JOIN', @_ );
+}
 
-	my %join_spec = ( type => 'JOIN',
-			  to => { $self -> model() -> _db_table() => $self -> table_alias() },
-			  table => { $filter -> model() -> _db_table() => $filter -> table_alias() },
-			  on => $conn_sql ); 
+sub connect_filter_join
+{
+	my $self = shift;
+	$self -> connect_filter_complex( 'JOIN', @_ );
+}
 
-	$self -> _self_add_table_join( \%join_spec );
+sub connect_filter_complex
+{
+	my $self = shift;
+	my $type = shift;
 
-	map { $self -> _self_add_table_join( $_ ) } @{ $filter -> joined_tables() };
+	if( $type )
+	{
+		assert( $self -> _valid_join_type( $type ), 'I dont know this join type: ' . $type );
+		my ( $arg, $filter ) = $self -> sanitize_args_for_connecting( @_ );
+		
+		map { $self -> push_clause( $_, $filter -> table_alias() ) } @{ $filter -> clauses() };
+		
+		my $conn_sql = $self -> form_conn_sql( $arg, $filter );
+		
+		my %join_spec = ( type => $type,
+				  to => { $self -> model() -> _db_table() => $self -> table_alias() },
+				  table => { $filter -> model() -> _db_table() => $filter -> table_alias() },
+				  on => $conn_sql ); 
+		
+		$self -> _self_add_table_join( \%join_spec );
+		
+		map { $self -> _self_add_table_join( $_ ) } @{ $filter -> joined_tables() };
+
+	} else
+	{
+		$self -> connect_filter( @_ );
+	}
 }
 
 sub _self_add_table_join
@@ -690,12 +746,12 @@ sub call_orm_method
 
 	my @args = @_;
 
-#	my %all = $self -> all_tables_used_in_filter();
+	my %all = $self -> all_tables_used_in_filter();
 	my $all = $self -> _all_tables_used_in_filter_joinable();
 
 	return $self -> model() -> $method( @args,
 					    _table_alias => $self -> table_alias(),
-#					    _tables_to_select_from => [ map { sprintf( "%s %s", $all{ $_ }, $_ ) } keys %all ],
+					    _tables_used => [ map { sprintf( "%s %s", $all{ $_ }, $_ ) } keys %all ],
 					    _tables_to_select_from => $all,
 					    _where => join( ' AND ', $self -> translate_into_sql_clauses( @args ) ) );
 }

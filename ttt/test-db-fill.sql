@@ -12,6 +12,18 @@ INSERT INTO author (id,aname) values ( 3, 'Anna Dickson' );
 
 ALTER SEQUENCE author_id_seq RESTART WITH 100;
 
+CREATE table country 
+(
+	id serial NOT NULL PRIMARY KEY,
+	cname VARCHAR UNIQUE NOT NULL
+);
+INSERT INTO country (cname) values ('USA');
+INSERT INTO country (cname) values ('Mexican Rep');
+INSERT INTO country (cname) values ('Belgium');
+INSERT INTO country (cname) values ('Norway');
+
+ALTER SEQUENCE country_id_seq RESTART WITH 100;
+
 create table author_more_info
 (
 	id serial NOT NULL PRIMARY KEY,
@@ -19,8 +31,10 @@ create table author_more_info
 	birthday timestamp,
 	dead timestamp,
 	married bool,
-	country int
+	country int references country(id)
 );
+
+INSERT INTO author_more_info (author,birthday,dead,married,country) VALUES (1,'1932-04-12',NULL,true,1);
 
 ALTER SEQUENCE author_more_info_id_seq RESTART WITH 100;
 

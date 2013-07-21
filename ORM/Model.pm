@@ -458,7 +458,7 @@ sub __form_sql_func_sql_more_fields
 
 				if( $grp -> model() and ( $grp -> model() ne $self ) )
 				{
-					$use_ta = $grp -> determine_ta_for_field_from_another_model( $args{ '_tables_to_select_from' } );
+					$use_ta = $grp -> determine_ta_for_field_from_another_model( $args{ '_tables_used' } );
 
 				}
 				$f = $grp -> form_field_name_for_db_select_with_as( $use_ta );#form_field_name_for_db_select( $use_ta );
@@ -1086,7 +1086,7 @@ QGVfwMGQEd15mtsn:
 			{
 				unless( $f -> model() eq $self )
 				{
-					my $ta = $f -> determine_ta_for_field_from_another_model( $args{ '_tables_to_select_from' } );
+					my $ta = $f -> determine_ta_for_field_from_another_model( $args{ '_tables_used' } );
 					$select = $f -> form_field_name_for_db_select_with_as( $ta );
 				}
 			}
@@ -1263,7 +1263,7 @@ sub __form_additional_sql_groupby
 
 				if( $grp -> model() and ( $grp -> model() ne $self ) )
 				{
-					$use_ta = $grp -> determine_ta_for_field_from_another_model( $args{ '_tables_to_select_from' } );
+					$use_ta = $grp -> determine_ta_for_field_from_another_model( $args{ '_tables_used' } );
 				}
 
 				$f = $grp -> form_field_name_for_db_select( $use_ta );
@@ -1434,7 +1434,7 @@ sub determine_op_and_col_and_correct_val
 			{
 				unless( $val -> model() eq $self )
 				{
-					$use_ta = $val -> determine_ta_for_field_from_another_model( $args -> { '_tables_to_select_from' } );
+					$use_ta = $val -> determine_ta_for_field_from_another_model( $args -> { '_tables_used' } );
 				}
 
 			}
@@ -1504,7 +1504,7 @@ sub determine_op_and_col_and_correct_val
 			{
 				unless( $val -> model() eq $self )
 				{
-					$use_ta = $val -> determine_ta_for_field_from_another_model( $args -> { '_tables_to_select_from' } );
+					$use_ta = $val -> determine_ta_for_field_from_another_model( $args -> { '_tables_used' } );
 				}
 
 			}
