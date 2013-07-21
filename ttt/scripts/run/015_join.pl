@@ -25,13 +25,23 @@ my $sf = Models::Sales -> f();
 
 $bf -> connect_filter_complex( $sf );
 
-$af -> connect_filter_complex( $bf );
+$af -> connect_filter( $bf );
 $af -> connect_filter_complex( $aif );
 
-print "JOINED: " . Dumper( $af -> joined_tables() );
+
+# print Dumper( $af -> joined_tables() );
+
+# print "#" . "-"x80 . "\n";
+
+# my @all = $af -> _all_tables_used_in_filter_joinable();
+
+# print Dumper( \@all );
+# exit( 0 );
+
+#print "JOINED: " . Dumper( $af -> joined_tables() );
 
 
-my @all1 = $af -> all_tables_used_in_filter_with_joins_sql();
+#my @all1 = $af -> all_tables_used_in_filter_with_joins_sql();
 
 
 #print Dumper( \@all1 );

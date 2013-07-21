@@ -310,9 +310,10 @@ sub connect_filter
 
 		$self -> push_clause( $c1 );
 	}
+	map { $self -> _self_add_table_join( $_ ) } @{ $filter -> joined_tables() };
 }
 
-sub connect_filter_complex # join with method specification
+sub connect_filter_complex # join with method specification (TODO, hardcoded JOIN now)
 {
 	my $self = shift;
 
@@ -329,7 +330,7 @@ sub connect_filter_complex # join with method specification
 
 	$self -> _self_add_table_join( \%join_spec );
 
-	map { $self -> _self_add_table_join( $_ ) } @{ $filter -> joined_tables() }; # preserve his joins also
+	map { $self -> _self_add_table_join( $_ ) } @{ $filter -> joined_tables() };
 }
 
 sub _self_add_table_join
@@ -518,6 +519,119 @@ sub translate_into_sql_clauses
 	return @all_clauses_together;
 }
 
+sub _table_spec_with_join_support
+{
+	my ( $self, $table, $depth ) = @_;
+
+	$depth = ( $depth or 0 );
+
+	assert( $depth < 100, 'Too deep in.' );
+
+	my ( $tn, $ta ) = %{ $table };
+
+	my $rv = '';
+
+	unless( $depth or &__in_skip_list( my $s = $tn . ' ' . $ta ) )
+	{
+		$rv = $s;
+	}
+
+	foreach my $jt ( @{ $self -> joined_tables() } )
+	{
+		my ( $jt_to_n, $jt_to_a ) = %{ $jt -> { 'to' } };
+
+		if( ( $jt_to_n eq $tn )
+		    and
+		    ( $jt_to_a eq $ta ) )
+		{
+
+			my ( $jt_n, $jt_a ) = %{ $jt -> { 'table' } };
+			my $jspec = $jt_n . ' ' . $jt_a;
+
+			$rv .= ' ' .
+			    $jt -> { 'type' } .
+			    ' ' .
+			    $jspec .
+			    ' ON ( ' . $jt -> { 'on' } . ' ) ';
+
+			&__add_to_skip_list( $jspec );
+
+			$rv .= $self -> _table_spec_with_join_support( $jt -> { 'table' }, $depth + 1 );
+
+		}
+
+	}
+
+
+	return $rv;
+}
+
+{
+	# revisit later TODO
+
+	my %skip_list = ();
+
+	sub __clear_skip_list
+	{
+		%skip_list = ();
+	}
+
+	sub __add_to_skip_list
+	{
+		my $what = shift;
+		$skip_list{ $what } = 1;
+	}
+
+        sub __in_skip_list
+        {
+		my $what = shift;
+
+		my $rv = 0;
+		
+		if( exists $skip_list{ $what } )
+		{
+			$rv = 1;
+		}
+		return $rv;
+	}
+}
+
+
+sub _all_tables_used_in_filter_joinable # TODO
+{
+	my $self = shift;
+
+	my @rv = ();
+
+	my %skip_duplicates = ();
+
+	&__clear_skip_list();
+
+J1Dz1VhnaYMJllvy:
+	foreach my $c ( @{ $self -> clauses() } )
+	{
+		my $t = $c -> model() -> _db_table();
+		assert( my $ta = $c -> table_alias(), 'Unknown clause origin' );
+
+		if( exists $skip_duplicates{ $ta } )
+		{
+			1;
+		} else
+		{
+			if( my $spec = $self -> _table_spec_with_join_support( { $t => $ta } ) )
+			{
+				push @rv, $spec;
+			}
+
+			$skip_duplicates{ $ta } = 1;
+		}
+	}
+
+	&__clear_skip_list();
+
+	return \@rv;
+}
+
 sub all_tables_used_in_filter
 {
 	my $self = shift;
@@ -530,68 +644,17 @@ J1Dz1VhnaYMJllvy:
 		my $t = $c -> model() -> _db_table();
 		assert( my $ta = $c -> table_alias(), 'Unknown clause origin' );
 
-		foreach my $join_spec ( @{ $self -> joined_tables() } )
-		{
-			if( exists $join_spec -> { 'table' } -> { $t } )
-			{
-				next J1Dz1VhnaYMJllvy;
-			}
-		}
+		# foreach my $join_spec ( @{ $self -> joined_tables() } )
+		# {
+		# 	if( exists $join_spec -> { 'table' } -> { $t } )
+		# 	{
+		# 		next J1Dz1VhnaYMJllvy;
+		# 	}
+		# }
 		$rv{ $ta } = $t;
 	}
 
 	return %rv;
-}
-
-sub all_tables_used_in_filter_val_as_hr
-{
-	my $self = shift;
-
-	my %tables = $self -> all_tables_used_in_filter();
-	my %rv = ();
-
-	while( my ( $ta, $t ) = each %tables )
-	{
-		$rv{ $ta } = { table => $t,
-			       spec => sprintf( "%s %s", $t, $ta ) };
-	}
-
-	return %rv;
-}
-
-sub all_tables_used_in_filter_with_joins_sql
-{
-	my $self = shift;
-
-	my %t = $self -> all_tables_used_in_filter_val_as_hr();
-	my $joined = $self -> joined_tables();
-
-
-# 	print "USED: " . Data::Dumper::Dumper( \%t );
-# 	print "JOINED: " . Data::Dumper::Dumper( $joined );
-
-# USED: $VAR1 = {
-#           'T2' => {
-#                     'spec' => 'book T2',
-#                     'table' => 'book'
-#                   }
-#         };
-# JOINED: $VAR1 = {
-#           'T2' => {
-#                     'on' => 'T2.author=T1.id',
-#                     'to' => {
-#                               'book' => 'T2'
-#                             },
-#                     'table' => {
-#                                  'author' => 'T1'
-#                                },
-#                     'type' => 'JOIN'
-#                   }
-#         };
-
-
-
-
 }
 
 sub get_many
@@ -627,11 +690,13 @@ sub call_orm_method
 
 	my @args = @_;
 
-	my %all = $self -> all_tables_used_in_filter();
+#	my %all = $self -> all_tables_used_in_filter();
+	my $all = $self -> _all_tables_used_in_filter_joinable();
 
 	return $self -> model() -> $method( @args,
 					    _table_alias => $self -> table_alias(),
-					    _tables_to_select_from => [ map { sprintf( "%s %s", $all{ $_ }, $_ ) } keys %all ],
+#					    _tables_to_select_from => [ map { sprintf( "%s %s", $all{ $_ }, $_ ) } keys %all ],
+					    _tables_to_select_from => $all,
 					    _where => join( ' AND ', $self -> translate_into_sql_clauses( @args ) ) );
 }
 

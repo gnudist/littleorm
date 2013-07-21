@@ -1,7 +1,7 @@
 #!/bin/sh
 
 CREATETESTDB=0
-DROPTESTDB=0
+DROPTESTDB=1
 
 TESTDBNAME=kfnyres9iqundncn_littleorm_test_db
 TESTDBUSER=eozt02hmve18d8mu_littleorm
