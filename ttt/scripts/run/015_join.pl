@@ -23,7 +23,6 @@ my $aif = Models::AuthorInfo -> f();
 my $bf = Models::Book -> f();
 my $sf = Models::Sales -> f();
 
-$bf -> connect_filter_complex();
 $bf -> connect_filter_complex( $sf );
 
 $af -> connect_filter_complex( $bf );

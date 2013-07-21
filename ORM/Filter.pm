@@ -312,7 +312,7 @@ sub connect_filter
 	}
 }
 
-sub connect_filter_complex # with method specification
+sub connect_filter_complex # join with method specification
 {
 	my $self = shift;
 
@@ -329,6 +329,7 @@ sub connect_filter_complex # with method specification
 
 	$self -> _self_add_table_join( \%join_spec );
 
+	map { $self -> _self_add_table_join( $_ ) } @{ $filter -> joined_tables() }; # preserve his joins also
 }
 
 sub _self_add_table_join
