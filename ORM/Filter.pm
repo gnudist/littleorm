@@ -317,7 +317,7 @@ sub _valid_join_type
 {
 	my ( $self, $jtype ) = @_;
 
-	my @known = ( 'JOIN', 'LEFT JOIN', 'RIGHT JOIN', 'LEFT OUTER JOIN', 'RIGHT OUTER JOIN', 'MEGAJOIN 3000' );
+	my @known = ( 'JOIN', 'INNER JOIN', 'LEFT JOIN', 'RIGHT JOIN', 'LEFT OUTER JOIN', 'RIGHT OUTER JOIN', 'MEGAJOIN 3000' );
 	my %known = map { $_ => 1 } @known;
 
 	my $rv = 0;
