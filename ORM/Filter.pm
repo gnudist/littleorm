@@ -734,6 +734,20 @@ sub count
 	return $self -> call_orm_method( 'count', @_ );
 }
 
+sub max
+{
+	my $self = shift;
+
+	return $self -> call_orm_method( 'max', @_ );
+}
+
+sub min
+{
+	my $self = shift;
+
+	return $self -> call_orm_method( 'min', @_ );
+}
+
 sub delete
 {
 	assert( 0, 'Delete is not supported in ORM::Filter. Just map { $_ -> delete() } at what get_many() returns.' );
