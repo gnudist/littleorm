@@ -34,6 +34,8 @@ subtest 'BookNoFK => Author' => sub
 	ok( ( $count > 0 ), 'Got some rows' );
 
 	is( $bf -> count(), $count, 'count()' );
+
+
 	ok( $bf -> max( 'id' ), 'max()' );
 	ok( $bf -> min( 'id' ), 'min()' );
 
@@ -41,6 +43,7 @@ subtest 'BookNoFK => Author' => sub
 
 	ok( $r -> his_name(), 'DataSet has his_name()' );
 };
+
 
 subtest 'BookNoFKAndNoPK => Author' => sub
 {
@@ -110,7 +113,7 @@ subtest 'Author => BookNoFK' => sub
 	plan tests => 7;
 #	plan skip_all => 'broken';
 
-	my $bf = Models::Author -> f( Models::BookNoFK -> f( _return => 'author' ) );
+	my $bf = Models::Author -> f( id => Models::BookNoFK -> f( _return => 'author' ) );
 
 	isa_ok( $bf, 'ORM::Filter', 'filter' );
 
@@ -118,7 +121,8 @@ subtest 'Author => BookNoFK' => sub
 
 	ok( ( $count > 0 ), 'Got some rows' );
 
-	is( $bf -> count(), $count, 'count()' );
+#	is( $bf -> count(), $count, 'count()' );
+	is( $bf -> count( _distinct => 1 ), $count, 'count()' );
 	ok( $bf -> max( 'id' ), 'max()' );
 	ok( $bf -> min( 'id' ), 'min()' );
 
@@ -132,7 +136,7 @@ subtest 'Author => BookNoFKAndNoPK' => sub
 	plan tests => 7;
 #	plan skip_all => 'broken';
 
-	my $bf = Models::Author -> f( Models::BookNoFKAndNoPK -> f( _return => 'author' ) );
+	my $bf = Models::Author -> f( id => Models::BookNoFKAndNoPK -> f( _return => 'author' ) );
 
 	isa_ok( $bf, 'ORM::Filter', 'filter' );
 
@@ -140,7 +144,7 @@ subtest 'Author => BookNoFKAndNoPK' => sub
 
 	ok( ( $count > 0 ), 'Got some rows' );
 
-	is( $bf -> count(), $count, 'count()' );
+	is( $bf -> count( _distinct => 1 ), $count, 'count()' );
 	ok( $bf -> max( 'id' ), 'max()' );
 	ok( $bf -> min( 'id' ), 'min()' );
 
@@ -284,6 +288,8 @@ subtest 'Impossible filters are impossible' => sub{
 		ok( not( defined $filter ), sprintf( q|Can't create such filter: %s|, $note ) );
 	}
 };
+
+FINISHEDTEST:
 
 $dbh -> disconnect();
 

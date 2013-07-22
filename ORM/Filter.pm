@@ -762,12 +762,64 @@ sub call_orm_method
 
 	my %all = $self -> all_tables_used_in_filter();
 	my $all = $self -> _all_tables_used_in_filter_joinable();
+	
+	my @targs = $self -> _correct_args_for_sql_translation_when_calling_certain_orm_methods( $method, @args );
 
-	return $self -> model() -> $method( @args,
+	return $self -> model() -> $method( $self -> _correct_args_for_calling_certain_orm_methods( $method, @args ),
 					    _table_alias => $self -> table_alias(),
 					    _tables_used => [ map { sprintf( "%s %s", $all{ $_ }, $_ ) } keys %all ],
 					    _tables_to_select_from => $all,
-					    _where => join( ' AND ', $self -> translate_into_sql_clauses( @args ) ) );
+					    _where => join( ' AND ', $self -> translate_into_sql_clauses( @targs ) ) );
+}
+
+sub _correct_args_for_calling_certain_orm_methods
+{
+	my $self = shift;
+	my $method = shift;
+
+	my @args = @_;
+
+	my $replace_attr_with_field = sub { my $method = shift;
+					    my @attrs = @_;
+					    my $aname = $attrs[ 0 ];
+					    unless( ORM::Model::Field -> this_is_field( $aname ) )
+					    {
+						    assert( my $attr = $self -> model() -> meta() -> find_attribute_by_name( $aname ) );
+						    my $f = $self -> model() -> borrow_field( $aname,
+											      select_as => $method );
+						    $attrs[ 0 ] = $f;
+					    }
+					    return @attrs; };
+					    
+	my %cleanse = ( min => $replace_attr_with_field,
+			max => $replace_attr_with_field );
+
+	if( my $code = $cleanse{ $method } )
+	{
+		@args = $code -> ( $method, @args );
+	}
+
+	return @args;
+}
+
+sub _correct_args_for_sql_translation_when_calling_certain_orm_methods
+{
+	my $self = shift;
+	my $method = shift;
+
+	my @args = @_;
+
+	my $skip_first_arg = sub { shift @_ ; return @_; };
+
+	my %cleanse = ( 'min' => $skip_first_arg,
+			'max' => $skip_first_arg );
+
+	if( my $code = $cleanse{ $method } )
+	{
+		@args = $code -> ( @args );
+	}
+
+	return @args;
 }
 
 sub find_corresponding_fk_attr_between_models

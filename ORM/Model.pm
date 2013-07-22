@@ -287,6 +287,7 @@ sub _sql_func_on_attr
 	my %args = @args;
 
 	my $outcome = 0;
+
 	my $sql = $self -> __form_sql_func_sql( _func => $func,
 						_attr => $attr,
 						@args );
@@ -342,7 +343,15 @@ sub max
 
 	my $rv = $self -> _sql_func_on_attr( 'max', @_ );
 
-	assert( my $attr = $self -> meta() -> find_attribute_by_name( $attrname ) );
+	my $attr = undef;
+
+	if( ORM::Model::Field -> this_is_field( $attrname ) )
+	{
+		assert( $attr = $self -> meta() -> find_attribute_by_name( $attrname -> base_attr() ) );
+	} else
+	{
+		assert( $attr = $self -> meta() -> find_attribute_by_name( $attrname ) );
+	}
 
 	if( my $coerce_from = &__descr_attr( $attr, 'coerce_from' ) )
 	{
@@ -351,6 +360,7 @@ sub max
 
 	return $rv;
 }
+
 
 sub min
 {
@@ -360,7 +370,15 @@ sub min
 
 	my $rv = $self -> _sql_func_on_attr( 'min', @_ );
 
-	assert( my $attr = $self -> meta() -> find_attribute_by_name( $attrname ) );
+	my $attr = undef;
+
+	if( ORM::Model::Field -> this_is_field( $attrname ) )
+	{
+		assert( $attr = $self -> meta() -> find_attribute_by_name( $attrname -> base_attr() ) );
+	} else
+	{
+		assert( $attr = $self -> meta() -> find_attribute_by_name( $attrname ) );
+	}
 
 	if( my $coerce_from = &__descr_attr( $attr, 'coerce_from' ) )
 	{
@@ -369,6 +387,25 @@ sub min
 
 	return $rv;
 }
+
+
+# sub min
+# {
+# 	my $self = shift;
+
+# 	assert( my $attrname = $_[ 0 ] );
+
+# 	my $rv = $self -> _sql_func_on_attr( 'min', @_ );
+
+# 	assert( my $attr = $self -> meta() -> find_attribute_by_name( $attrname ) );
+
+# 	if( my $coerce_from = &__descr_attr( $attr, 'coerce_from' ) )
+# 	{
+# 		$rv = $coerce_from -> ( $rv );
+# 	}
+
+# 	return $rv;
+# }
 
 sub __default_db_field_name_for_func
 {
@@ -416,8 +453,14 @@ sub __form_sql_func_sql
 
 	if( my $attrname = $args{ '_attr' } )
 	{
-		assert( my $attr = $self -> meta() -> find_attribute_by_name( $attrname ) );
-		$dbf = &__get_db_field_name( $attr );
+		if( ORM::Model::Field -> this_is_field( $attrname ) )
+		{
+			$dbf = $attrname -> form_field_name_for_db_select( $attrname -> determine_ta_for_field_from_another_model( $args{ '_tables_used' } ) );
+		} else
+		{
+			assert( my $attr = $self -> meta() -> find_attribute_by_name( $attrname ) );
+			$dbf = &__get_db_field_name( $attr );
+		}
 	}
 
 	my $sql = sprintf( "SELECT %s%s(%s) FROM %s WHERE %s",
