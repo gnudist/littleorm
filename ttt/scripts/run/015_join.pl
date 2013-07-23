@@ -70,6 +70,38 @@ if( 1 )
 }
 
 
+if( 1 )
+{
+	my $author_f = Models::Book -> borrow_field( 'author', _distinct => 1 );
+	isa_ok( $author_f, 'ORM::Model::Field', 'borrowed a field' );
+
+	my $married_f = Models::AuthorInfo -> borrow_field( 'married' );
+	isa_ok( $married_f, 'ORM::Model::Field', 'borrowed a field' );
+
+
+
+	# id is unspecified, so its taken from model which filter belongs to (Models::Author) 
+
+	my @all_fieldset = $af -> get_many( _fieldset => [ 'id', $author_f, $married_f ], _distinct => 1 );
+
+
+	my $found_married = 0;
+
+	foreach my $ds ( @all_fieldset )
+	{
+		isa_ok( $ds, 'ORM::DataSet', 'its ds' );
+		if( $ds -> field( $married_f ) )
+		{
+			$found_married = 1;
+		}
+		is( $ds -> id(), $ds -> field( $author_f ) -> id(), 'author id is right' );
+
+	}
+	ok( $found_married, 'someone is married' );
+
+}
+
+
 
 $dbh -> disconnect();
 done_testing();
