@@ -119,7 +119,7 @@ use Moose;
 has 'model' => ( is => 'rw', isa => 'Str', required => 1 );
 has 'table_alias' => ( is => 'rw', isa => 'Str', default => \&get_uniq_alias_for_table );
 has 'returning' => ( is => 'rw', isa => 'Maybe[Str]' ); # return column name for connecting with other filter
-has 'returning_field' => ( is => 'rw', isa => 'ORM::Model::Field' );
+has 'returning_field' => ( is => 'rw', isa => 'Maybe[ORM::Model::Field]', default => undef );
 has 'clauses' => ( is => 'rw', isa => 'ArrayRef[ORM::Clause]', default => sub { [] } );
 has 'joined_tables' => ( is => 'rw', isa => 'ArrayRef[HashRef]', default => sub { [] } );
 
