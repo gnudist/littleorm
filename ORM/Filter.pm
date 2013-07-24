@@ -594,7 +594,14 @@ sub _table_spec_with_join_support
 
 	my $rv = '';
 
-	unless( $depth or &__in_skip_list( my $s = $tn . ' ' . $ta ) )
+	if( ( $depth == 0 ) and &__in_skip_list( my $s = $tn . ' ' . $ta ) )
+	{
+		return $rv;
+
+	} elsif( $depth ) # or &__in_skip_list( $s ) )
+	{
+		1;
+	} else
 	{
 		$rv = $s;
 	}
@@ -618,14 +625,9 @@ sub _table_spec_with_join_support
 			    ' ON ( ' . $jt -> { 'on' } . ' ) ';
 
 			&__add_to_skip_list( $jspec );
-
 			$rv .= $self -> _table_spec_with_join_support( $jt -> { 'table' }, $depth + 1 );
-
 		}
-
 	}
-
-
 	return $rv;
 }
 
