@@ -354,6 +354,13 @@ sub connect_filter_left_outer_join
 	$self -> connect_filter_complex( 'LEFT OUTER JOIN', @_ );
 }
 
+sub connect_filter_inner_join
+{
+	my $self = shift;
+	$self -> connect_filter_complex( 'INNER JOIN', @_ );
+}
+
+
 sub connect_filter_join
 {
 	my $self = shift;
