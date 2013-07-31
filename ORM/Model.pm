@@ -962,11 +962,14 @@ sub __prep_value_for_db
 
 	my $rv = $value;
 
-	my $coerce_to = &__descr_attr( $attr, 'coerce_to' );
-
-	if( defined $coerce_to )
+	unless( ORM::Model::Field -> this_is_field( $value ) )
 	{
-		$rv = $coerce_to -> ( $value );
+		my $coerce_to = &__descr_attr( $attr, 'coerce_to' );
+
+		if( defined $coerce_to )
+		{
+			$rv = $coerce_to -> ( $value );
+		}
 	}
 
 	if( blessed( $value ) and &__descr_attr( $attr, 'foreign_key' ) )
@@ -1517,13 +1520,22 @@ sub determine_op_and_col_and_correct_val
 				if( ref( $rval ) eq 'ARRAY' )
 				{
 					
-					$val = sprintf( '(%s)', join( ',', map { &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $_ ),
-												$dbh ) } @{ $rval } ) );
-					
+					$val = sprintf( '(%s)', join( ',', map { $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $_ ),
+														       $ta,
+														       $args,
+														       $dbh )  } @{ $rval } ) );
+
+				
 				} else
 				{
-					$val = &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $rval ),
-							      $dbh );
+					my $v = &__prep_value_for_db( $class_attr, $rval );
+					
+					$val = $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $rval ),
+										     $ta,
+										     $args,
+										     $dbh );
+
+
 				}
 			}
 			
@@ -1540,23 +1552,30 @@ sub determine_op_and_col_and_correct_val
 				$val = sprintf( 'ANY(%s)', &ORM::Db::dbq( \@values, $dbh ) );
 			}
 			
-		} elsif( ORM::Model::Field -> this_is_field( $val ) )
-		{ 
-			my $use_ta = $ta;
-			if( $val -> model() )
-			{
-				unless( $val -> model() eq $self )
-				{
-					$use_ta = $val -> determine_ta_for_field_from_another_model( $args -> { '_tables_used' } );
-				}
+		}
 
-			}
-			$val = $val -> form_field_name_for_db_select( $use_ta );
 
-		} else
+# elsif( ORM::Model::Field -> this_is_field( $val ) )
+# 		{ 
+
+# 			$val = $self -> __prep_value_for_db_w_field( $val,
+# 								     $ta,
+# 								     $args,
+# 								     $dbh );
+
+# 		}
+
+ else
 		{
-			$val = &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $val ),
-					      $dbh );
+
+			$val = $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $val ),
+								     $ta,
+								     $args,
+								     $dbh );
+
+
+			# $val = &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $val ),
+			# 		      $dbh );
 		}
 		
 		$op = $field -> appropriate_op( $op );
@@ -1566,6 +1585,35 @@ sub determine_op_and_col_and_correct_val
 	return ( $op, $val, $col );
 }
 
+sub __prep_value_for_db_w_field
+{
+	my ( $self, $v, $ta, $args, $dbh ) = @_;
+
+	my $val = undef;
+
+	if( ORM::Model::Field -> this_is_field( $v ) )
+	{
+
+		my $use_ta = $ta;
+		if( $v -> model() )
+		{
+			unless( $v -> model() eq $self )
+			{
+				$use_ta = $v -> determine_ta_for_field_from_another_model( $args -> { '_tables_used' } );
+			}
+
+		}
+
+		$val = $v -> form_field_name_for_db_select( $use_ta );
+
+	} else
+	{
+		$val = &ORM::Db::dbq( $v,
+				      $dbh );
+	}
+
+	return $val;
+}
 
 sub __find_primary_key
 {

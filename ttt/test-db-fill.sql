@@ -109,6 +109,11 @@ published bool NOT NULL DEFAULT false,
 created timestamp not null default NOW(),
 publisher int not null REFERENCES publisher(id) );
 
+
+insert into publication (book,publisher) values (1,1);
+insert into publication (book,publisher) values (2,1);
+insert into publication (book,publisher) values (3,1);
+
 ALTER SEQUENCE publication_id_seq RESTART WITH 100;
 
 COMMIT;
