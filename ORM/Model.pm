@@ -1469,17 +1469,33 @@ sub determine_op_and_col_and_correct_val
 					
 			} else
 			{
-				$val = &ORM::Db::dbq( $rval,
-						      $dbh );
+				# $val = &ORM::Db::dbq( $rval,
+				# 		      $dbh );
+
+
+				$val = $self -> __prep_value_for_db_w_field( $rval,
+									     $ta,
+									     $args,
+									     $dbh );
+
+
 			}
 			
 		} elsif( ref( $val ) eq 'ARRAY' )
 		{
 			
-			my @values = map { $self -> __prep_value_for_db_w_field( $_,
-										 $ta,
-										 $args ) } @{ $val };
-			$val = sprintf( 'ANY(%s)', &ORM::Db::dbq( \@values, $dbh ) );
+			if( my @values = map { $self -> __prep_value_for_db_w_field( $_,
+										     $ta,
+										     $args, 
+										     $dbh ) } @{ $val } )
+			{
+				$val = sprintf( "(%s)", join( ',', @values ) );
+				$op = 'IN';
+			} else
+			{
+				$val = "ANY('{}')";
+			}
+			#$val = sprintf( 'ANY(%s)', &ORM::Db::dbq( \@values, $dbh ) );
 			
 		} elsif( ORM::Model::Field -> this_is_field( $val ) )
 		{ 
@@ -1536,7 +1552,7 @@ sub determine_op_and_col_and_correct_val
 				
 				} else
 				{
-					my $v = &__prep_value_for_db( $class_attr, $rval );
+					#my $v = &__prep_value_for_db( $class_attr, $rval ); # wtf is this for
 					
 					$val = $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $rval ),
 										     $ta,
