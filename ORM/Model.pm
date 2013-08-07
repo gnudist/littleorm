@@ -1130,11 +1130,11 @@ QGVfwMGQEd15mtsn:
 
 			if( $f -> model() )
 			{
-				unless( $f -> model() eq $self )
-				{
-					my $ta = $f -> determine_ta_for_field_from_another_model( $args{ '_tables_used' } );
-					$select = $f -> form_field_name_for_db_select_with_as( $ta );
-				}
+#				unless( $f -> model() eq $self )
+#				{
+				my $ta = $f -> determine_ta_for_field_from_another_model( $args{ '_tables_used' } );
+				$select = $f -> form_field_name_for_db_select_with_as( $ta );
+#				}
 			}
 			push @rv, $select;# . ' AS ' . $f -> select_as();
 		}
@@ -1458,8 +1458,14 @@ sub determine_op_and_col_and_correct_val
 				
 			if( ref( $rval ) eq 'ARRAY' )
 			{
-				$val = sprintf( '(%s)', join( ',', map { &ORM::Db::dbq( $_,
-												$dbh ) } @{ $rval } ) );
+				# $val = sprintf( '(%s)', join( ',', map { &ORM::Db::dbq( $_,
+				# 							$dbh ) } @{ $rval } ) );
+				
+
+				$val = sprintf( '(%s)', join( ',', map { $self -> __prep_value_for_db_w_field( $_,
+													       $ta,
+													       $args,
+													       $dbh ) } @{ $rval } ) );
 					
 			} else
 			{
@@ -1470,7 +1476,9 @@ sub determine_op_and_col_and_correct_val
 		} elsif( ref( $val ) eq 'ARRAY' )
 		{
 			
-			my @values = @{ $val };
+			my @values = map { $self -> __prep_value_for_db_w_field( $_,
+										 $ta,
+										 $args ) } @{ $val };
 			$val = sprintf( 'ANY(%s)', &ORM::Db::dbq( \@values, $dbh ) );
 			
 		} elsif( ORM::Model::Field -> this_is_field( $val ) )
@@ -1548,24 +1556,13 @@ sub determine_op_and_col_and_correct_val
 						      $dbh );
 			} else
 			{
-				my @values = map { &__prep_value_for_db( $class_attr, $_ ) } @{ $val };
+				my @values = map { $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $_ ),
+											 $ta,
+											 $args ) } @{ $val };
 				$val = sprintf( 'ANY(%s)', &ORM::Db::dbq( \@values, $dbh ) );
 			}
 			
-		}
-
-
-# elsif( ORM::Model::Field -> this_is_field( $val ) )
-# 		{ 
-
-# 			$val = $self -> __prep_value_for_db_w_field( $val,
-# 								     $ta,
-# 								     $args,
-# 								     $dbh );
-
-# 		}
-
- else
+		} else
 		{
 
 			$val = $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $val ),
@@ -1589,11 +1586,10 @@ sub __prep_value_for_db_w_field
 {
 	my ( $self, $v, $ta, $args, $dbh ) = @_;
 
-	my $val = undef;
+	my $val = $v;
 
 	if( ORM::Model::Field -> this_is_field( $v ) )
 	{
-
 		my $use_ta = $ta;
 		if( $v -> model() )
 		{
@@ -1606,11 +1602,12 @@ sub __prep_value_for_db_w_field
 
 		$val = $v -> form_field_name_for_db_select( $use_ta );
 
-	} else
+	} elsif( $dbh )
 	{
 		$val = &ORM::Db::dbq( $v,
 				      $dbh );
 	}
+	    
 
 	return $val;
 }

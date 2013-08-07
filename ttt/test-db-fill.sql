@@ -96,9 +96,14 @@ ALTER SEQUENCE sale_log_id_seq RESTART WITH 100;
 
 CREATE TABLE publisher (
 id serial NOT NULL PRIMARY KEY,
-orgname varchar );
+orgname varchar,
+parent int references publisher(id) );
 
-INSERT INTO publisher VALUES (1, 'Major Book House' );
+INSERT INTO publisher VALUES (1, 'Major Book House', NULL );
+INSERT INTO publisher VALUES (2, 'Less Major Book House1', 1 );
+INSERT INTO publisher VALUES (3, 'Less Major Book House2', 1 );
+INSERT INTO publisher VALUES (4, 'Less Major Book House3', 1 );
+INSERT INTO publisher VALUES (5, 'Even Less Major Book House1', 2 );
 
 ALTER SEQUENCE publisher_id_seq RESTART WITH 100;
 

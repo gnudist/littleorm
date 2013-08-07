@@ -138,6 +138,14 @@ use List::MoreUtils 'uniq';
 
 }
 
+sub borrow_field
+{
+	my $self = shift;
+
+	my $rv = $self -> model() -> borrow_field( @_ );
+	$rv -> table_alias( $self -> table_alias() );
+	return $rv;
+}
 
 sub push_anything_appropriate
 {
