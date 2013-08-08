@@ -301,23 +301,78 @@ sub form_conn_sql
 
 }
 
+
+sub _look_for_connecting_args_in_args_and_do_it_in_a_compatible_way
+{
+	my $self = shift;
+	
+	my @kws = ( '_clause' );
+	my %kws = map { $_ => 1 } @kws;
+
+	my @rest_args = ();
+	my $connecting_args = {};
+
+	my $next_arg_is_what_we_need = undef;
+
+	foreach my $t ( @_ )
+	{
+		if( $next_arg_is_what_we_need )
+		{
+			assert( not exists $kws{ $t } );
+			$connecting_args -> { $next_arg_is_what_we_need } = $t;
+			$next_arg_is_what_we_need = undef;
+
+		} elsif( exists $kws{ $t } )
+		{
+			$next_arg_is_what_we_need = $t;
+		} else
+		{
+			push @rest_args, $t;
+		}
+	}
+	assert( not defined $next_arg_is_what_we_need );
+
+	return ( \@rest_args, $connecting_args );
+}
+
+sub _get_connecting_clause_from_connecting_args
+{
+	my ( $self, $args ) = @_;
+
+	my $rv = $args -> { '_clause' };
+
+	if( ref( $rv ) eq 'ARRAY' )
+	{
+		$rv = $self -> model() -> clause( @{ $rv } );
+	}
+
+	return $rv;
+}
+
 sub connect_filter
 {
 	my $self = shift;
+
+	my ( $rest_args, $connecting_args ) = $self -> _look_for_connecting_args_in_args_and_do_it_in_a_compatible_way( @_ );
+
+	@_ = @{ $rest_args };
+	my $connecting_clause = $self -> _get_connecting_clause_from_connecting_args( $connecting_args );
 
 	my ( $arg, $filter ) = $self -> sanitize_args_for_connecting( @_ );
 
 	map { $self -> push_clause( $_, $filter -> table_alias() ) } @{ $filter -> clauses() };
 
-	my $conn_sql = $self -> form_conn_sql( $arg, $filter );
-
+	unless( $connecting_clause )
 	{
-		my $c1 = $self -> model() -> clause( cond => [ _where => $conn_sql ],
-						     table_alias => $self -> table_alias() );
+		my $conn_sql = $self -> form_conn_sql( $arg, $filter );
 
+		$connecting_clause = $self -> model() -> clause( cond => [ _where => $conn_sql ],
+								 table_alias => $self -> table_alias() );
 
-		$self -> push_clause( $c1 );
 	}
+
+	$self -> push_clause( $connecting_clause );
+
 	map { $self -> _self_add_table_join( $_ ) } @{ $filter -> joined_tables() };
 }
 
@@ -383,11 +438,23 @@ sub connect_filter_complex
 	if( $type )
 	{
 		assert( $self -> _valid_join_type( $type ), 'I dont know this join type: ' . $type );
+
+		my ( $rest_args, $connecting_args ) = $self -> _look_for_connecting_args_in_args_and_do_it_in_a_compatible_way( @_ );
+		@_ = @{ $rest_args };
+
 		my ( $arg, $filter ) = $self -> sanitize_args_for_connecting( @_ );
 		
 		map { $self -> push_clause( $_, $filter -> table_alias() ) } @{ $filter -> clauses() };
+
+		my $conn_sql = undef;
 		
-		my $conn_sql = $self -> form_conn_sql( $arg, $filter );
+		if( my $connecting_clause = $self -> _get_connecting_clause_from_connecting_args( $connecting_args ) )
+		{
+			$conn_sql = $connecting_clause -> sql();
+		} else
+		{
+			$conn_sql = $self -> form_conn_sql( $arg, $filter );
+		}
 		
 		my %join_spec = ( type => $type,
 				  to => { $self -> model() -> _db_table() => $self -> table_alias() },
