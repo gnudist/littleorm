@@ -962,29 +962,28 @@ sub __prep_value_for_db
 
 	my $rv = $value;
 
+
 	unless( ORM::Model::Field -> this_is_field( $value ) )
 	{
-		my $coerce_to = &__descr_attr( $attr, 'coerce_to' );
-
-		if( defined $coerce_to )
+		if( my $coerce_to = &__descr_attr( $attr, 'coerce_to' ) )
 		{
 			$rv = $coerce_to -> ( $value );
 		}
-	}
-
-	if( blessed( $value ) and &__descr_attr( $attr, 'foreign_key' ) )
-	{
-		my $foreign_key_attr_name = &__descr_attr( $attr, 'foreign_key_attr_name' );
-
-		unless( $foreign_key_attr_name )
+		
+		if( blessed( $value ) and &__descr_attr( $attr, 'foreign_key' ) )
 		{
-			my $his_pk = $value -> __find_primary_key();
-			$foreign_key_attr_name = $his_pk -> name();
+			my $foreign_key_attr_name = &__descr_attr( $attr, 'foreign_key_attr_name' );
+			
+			unless( $foreign_key_attr_name )
+			{
+				my $his_pk = $value -> __find_primary_key();
+				$foreign_key_attr_name = $his_pk -> name();
+			}
+			
+			$rv = $value -> $foreign_key_attr_name();
 		}
-
-		$rv = $value -> $foreign_key_attr_name();
 	}
-
+	
 	return $rv;
 }
 
@@ -1422,8 +1421,8 @@ fhFwaEknUtY5xwNr:
 					 
 			if( ORM::Model::Field -> this_is_field( $attr ) )
 			{
-				$attr -> assert_model_soft( $self );
-				$f = $attr -> form_field_name_for_db_select( $ta );
+				#$attr -> assert_model_soft( $self );
+				$f = $attr -> form_field_name_for_db_select( $attr -> table_alias() or $ta );
 			}
 
 			push @where_args, sprintf( '%s %s %s', 
