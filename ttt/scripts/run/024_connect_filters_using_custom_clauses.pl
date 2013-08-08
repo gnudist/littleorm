@@ -16,6 +16,7 @@ use ORM::Clause ();
 use ORM::DataSet ();
 use Models::Publications ();
 use Models::Publisher ();
+use Models::AuthorInfo ();
 use ORM::Model::Field ();
 
 
@@ -72,6 +73,45 @@ use ORM::Model::Field ();
 
 }
 
+
+{
+	# completely artificial example 
+
+	my $bf = Models::Book -> f( id => 1 );
+	my $titlef = $bf -> borrow_field( 'title' );
+	my $pricef = $bf -> borrow_field( 'price' );
+	my $authorf = $bf -> borrow_field( 'author' );
+
+	my $af = Models::Author -> f( id => { '>', 0 } );
+	
+	$af -> connect_filter( $bf,
+			       _clause => [ cond => [ _clause => [ cond => [ $titlef => { 'IS NOT', undef },
+									     id => $authorf ] ],
+							  
+							  _clause => [ cond => [ $titlef => { 'IS', undef },
+										 id => { '!=', $authorf } ] ]
+						      
+					    ],
+					    
+					    logic => 'OR' ] );
+	
+
+	my $ami = Models::AuthorInfo -> f( $af );
+
+
+	my @recs = $ami -> get_many();
+	ok( 1, 'didnt crash' );
+
+#SELECT T9.author,T9.id,T9.married FROM author T8,book
+#T7,author_more_info T9 WHERE ( 1=1 AND T8.id > '0' ) AND ( 1=1 AND
+#T7.id = '1' ) AND ( ( T7.title IS NOT NULL AND T8.id = T7.author ) OR
+#( T7.title IS NULL AND T8.id != T7.author ) ) AND ( T9.author=T8.id )
+#AND ( 1=1 )
+
+
+
+
+}
 
 $dbh -> disconnect();
 done_testing();
