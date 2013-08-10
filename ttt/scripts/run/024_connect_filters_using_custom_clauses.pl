@@ -18,7 +18,7 @@ use Models::Publications ();
 use Models::Publisher ();
 use Models::AuthorInfo ();
 use ORM::Model::Field ();
-
+use Models::BookNoFK ();
 
 
 {
@@ -110,6 +110,21 @@ use ORM::Model::Field ();
 
 
 
+
+}
+
+{
+	my $af = Models::Author -> f( id => 1 );
+	my $bf = Models::BookNoFK -> f();
+
+	$bf -> connect_filter( $af,
+			       _clause => [ cond => [ author => $af -> borrow_field( 'id' ) ] ] );
+
+	my $cnt = $bf -> count();
+
+	ok( 1, 'didnt crash' );
+
+	is( $cnt, Models::Book -> count( author => 1 ), 'match' );
 
 }
 
