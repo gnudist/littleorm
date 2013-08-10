@@ -358,7 +358,8 @@ sub connect_filter
 	@_ = @{ $rest_args };
 	my $connecting_clause = $self -> _get_connecting_clause_from_connecting_args( $connecting_args );
 
-	my ( $arg, $filter ) = $self -> sanitize_args_for_connecting( @_ );
+	my ( $arg, $filter ) = $self -> _sanitize_args_for_connecting( ArgAndFilter => \@_,
+								       ConnectingClause => $connecting_clause );
 
 	map { $self -> push_clause( $_, $filter -> table_alias() ) } @{ $filter -> clauses() };
 
@@ -442,7 +443,7 @@ sub connect_filter_complex
 		my ( $rest_args, $connecting_args ) = $self -> _look_for_connecting_args_in_args_and_do_it_in_a_compatible_way( @_ );
 		@_ = @{ $rest_args };
 
-		my ( $arg, $filter ) = $self -> sanitize_args_for_connecting( @_ );
+		my ( $arg, $filter ) = $self -> _sanitize_args_for_connecting( ArgAndFilter => \@_ );
 		
 		map { $self -> push_clause( $_, $filter -> table_alias() ) } @{ $filter -> clauses() };
 
@@ -478,9 +479,17 @@ sub _self_add_table_join
 	push @{ $self -> joined_tables() }, $join_spec;
 }
 
-sub sanitize_args_for_connecting
+sub _sanitize_args_for_connecting
 {
-	my ( $self, $arg, $filter ) = @_;
+
+	my $self = shift;
+
+	my %args = @_;
+	my ( $arg_and_filter,
+	     $connecting_clause ) = @args{ 'ArgAndFilter',
+					   'ConnectingClause' };
+
+	my ( $arg, $filter ) = @{ $arg_and_filter };
 
 	unless( $filter )
 	{
@@ -495,9 +504,14 @@ sub sanitize_args_for_connecting
 	{
 		if( $arg and blessed( $arg ) and $arg -> isa( 'ORM::Filter' ) )
 		{
-			my $args = $self -> model() -> _disambiguate_filter_args( [ $arg ] );
+			$filter = $arg;
 
-			( $arg, $filter ) = @{ $args };
+			unless( $connecting_clause )
+			{
+				my $args = $self -> model() -> _disambiguate_filter_args( [ $arg ] );
+
+				( $arg, $filter ) = @{ $args };
+			}
 
 		} else
 		{
@@ -513,7 +527,7 @@ sub connect_filter_exists
 	my $self = shift;
 	my $exists_keyword = shift;
 
-	my ( $arg, $filter ) = $self -> sanitize_args_for_connecting( @_ );
+	my ( $arg, $filter ) = $self -> _sanitize_args_for_connecting( ArgAndFilter => \@_ );
 
 	my $exf = ORM::Filter -> new( model => $filter -> model(),
 				      table_alias => $filter -> table_alias() );
