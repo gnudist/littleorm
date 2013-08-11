@@ -287,6 +287,7 @@ sub _sql_func_on_attr
 	my %args = @args;
 
 	my $outcome = 0;
+
 	my $sql = $self -> __form_sql_func_sql( _func => $func,
 						_attr => $attr,
 						@args );
@@ -342,7 +343,15 @@ sub max
 
 	my $rv = $self -> _sql_func_on_attr( 'max', @_ );
 
-	assert( my $attr = $self -> meta() -> find_attribute_by_name( $attrname ) );
+	my $attr = undef;
+
+	if( LittleORM::Model::Field -> this_is_field( $attrname ) )
+	{
+		assert( $attr = $self -> meta() -> find_attribute_by_name( $attrname -> base_attr() ) );
+	} else
+	{
+		assert( $attr = $self -> meta() -> find_attribute_by_name( $attrname ) );
+	}
 
 	if( my $coerce_from = &__descr_attr( $attr, 'coerce_from' ) )
 	{
@@ -351,6 +360,7 @@ sub max
 
 	return $rv;
 }
+
 
 sub min
 {
@@ -360,7 +370,15 @@ sub min
 
 	my $rv = $self -> _sql_func_on_attr( 'min', @_ );
 
-	assert( my $attr = $self -> meta() -> find_attribute_by_name( $attrname ) );
+	my $attr = undef;
+
+	if( LittleORM::Model::Field -> this_is_field( $attrname ) )
+	{
+		assert( $attr = $self -> meta() -> find_attribute_by_name( $attrname -> base_attr() ) );
+	} else
+	{
+		assert( $attr = $self -> meta() -> find_attribute_by_name( $attrname ) );
+	}
 
 	if( my $coerce_from = &__descr_attr( $attr, 'coerce_from' ) )
 	{
@@ -369,6 +387,25 @@ sub min
 
 	return $rv;
 }
+
+
+# sub min
+# {
+# 	my $self = shift;
+
+# 	assert( my $attrname = $_[ 0 ] );
+
+# 	my $rv = $self -> _sql_func_on_attr( 'min', @_ );
+
+# 	assert( my $attr = $self -> meta() -> find_attribute_by_name( $attrname ) );
+
+# 	if( my $coerce_from = &__descr_attr( $attr, 'coerce_from' ) )
+# 	{
+# 		$rv = $coerce_from -> ( $rv );
+# 	}
+
+# 	return $rv;
+# }
 
 sub __default_db_field_name_for_func
 {
@@ -416,8 +453,14 @@ sub __form_sql_func_sql
 
 	if( my $attrname = $args{ '_attr' } )
 	{
-		assert( my $attr = $self -> meta() -> find_attribute_by_name( $attrname ) );
-		$dbf = &__get_db_field_name( $attr );
+		if( LittleORM::Model::Field -> this_is_field( $attrname ) )
+		{
+			$dbf = $attrname -> form_field_name_for_db_select( $attrname -> determine_ta_for_field_from_another_model( $args{ '_tables_used' } ) );
+		} else
+		{
+			assert( my $attr = $self -> meta() -> find_attribute_by_name( $attrname ) );
+			$dbf = &__get_db_field_name( $attr );
+		}
 	}
 
 	my $sql = sprintf( "SELECT %s%s(%s) FROM %s WHERE %s",
@@ -458,7 +501,7 @@ sub __form_sql_func_sql_more_fields
 
 				if( $grp -> model() and ( $grp -> model() ne $self ) )
 				{
-					$use_ta = $grp -> determine_ta_for_field_from_another_model( $args{ '_tables_to_select_from' } );
+					$use_ta = $grp -> determine_ta_for_field_from_another_model( $args{ '_tables_used' } );
 
 				}
 				$f = $grp -> form_field_name_for_db_select_with_as( $use_ta );#form_field_name_for_db_select( $use_ta );
@@ -919,26 +962,28 @@ sub __prep_value_for_db
 
 	my $rv = $value;
 
-	my $coerce_to = &__descr_attr( $attr, 'coerce_to' );
 
-	if( defined $coerce_to )
+	unless( LittleORM::Model::Field -> this_is_field( $value ) )
 	{
-		$rv = $coerce_to -> ( $value );
-	}
-
-	if( blessed( $value ) and &__descr_attr( $attr, 'foreign_key' ) )
-	{
-		my $foreign_key_attr_name = &__descr_attr( $attr, 'foreign_key_attr_name' );
-
-		unless( $foreign_key_attr_name )
+		if( my $coerce_to = &__descr_attr( $attr, 'coerce_to' ) )
 		{
-			my $his_pk = $value -> __find_primary_key();
-			$foreign_key_attr_name = $his_pk -> name();
+			$rv = $coerce_to -> ( $value );
 		}
-
-		$rv = $value -> $foreign_key_attr_name();
+		
+		if( blessed( $value ) and &__descr_attr( $attr, 'foreign_key' ) )
+		{
+			my $foreign_key_attr_name = &__descr_attr( $attr, 'foreign_key_attr_name' );
+			
+			unless( $foreign_key_attr_name )
+			{
+				my $his_pk = $value -> __find_primary_key();
+				$foreign_key_attr_name = $his_pk -> name();
+			}
+			
+			$rv = $value -> $foreign_key_attr_name();
+		}
 	}
-
+	
 	return $rv;
 }
 
@@ -1084,11 +1129,11 @@ QGVfwMGQEd15mtsn:
 
 			if( $f -> model() )
 			{
-				unless( $f -> model() eq $self )
-				{
-					my $ta = $f -> determine_ta_for_field_from_another_model( $args{ '_tables_to_select_from' } );
-					$select = $f -> form_field_name_for_db_select_with_as( $ta );
-				}
+#				unless( $f -> model() eq $self )
+#				{
+				my $ta = $f -> determine_ta_for_field_from_another_model( $args{ '_tables_used' } );
+				$select = $f -> form_field_name_for_db_select_with_as( $ta );
+#				}
 			}
 			push @rv, $select;# . ' AS ' . $f -> select_as();
 		}
@@ -1263,7 +1308,7 @@ sub __form_additional_sql_groupby
 
 				if( $grp -> model() and ( $grp -> model() ne $self ) )
 				{
-					$use_ta = $grp -> determine_ta_for_field_from_another_model( $args{ '_tables_to_select_from' } );
+					$use_ta = $grp -> determine_ta_for_field_from_another_model( $args{ '_tables_used' } );
 				}
 
 				$f = $grp -> form_field_name_for_db_select( $use_ta );
@@ -1376,8 +1421,8 @@ fhFwaEknUtY5xwNr:
 					 
 			if( LittleORM::Model::Field -> this_is_field( $attr ) )
 			{
-				$attr -> assert_model_soft( $self );
-				$f = $attr -> form_field_name_for_db_select( $ta );
+				#$attr -> assert_model_soft( $self );
+				$f = $attr -> form_field_name_for_db_select( $attr -> table_alias() or $ta );
 			}
 
 			push @where_args, sprintf( '%s %s %s', 
@@ -1412,20 +1457,44 @@ sub determine_op_and_col_and_correct_val
 				
 			if( ref( $rval ) eq 'ARRAY' )
 			{
-				$val = sprintf( '(%s)', join( ',', map { &LittleORM::Db::dbq( $_,
-												$dbh ) } @{ $rval } ) );
+				# $val = sprintf( '(%s)', join( ',', map { &LittleORM::Db::dbq( $_,
+				# 							$dbh ) } @{ $rval } ) );
+				
+
+				$val = sprintf( '(%s)', join( ',', map { $self -> __prep_value_for_db_w_field( $_,
+													       $ta,
+													       $args,
+													       $dbh ) } @{ $rval } ) );
 					
 			} else
 			{
-				$val = &LittleORM::Db::dbq( $rval,
-						      $dbh );
+				# $val = &LittleORM::Db::dbq( $rval,
+				# 		      $dbh );
+
+
+				$val = $self -> __prep_value_for_db_w_field( $rval,
+									     $ta,
+									     $args,
+									     $dbh );
+
+
 			}
 			
 		} elsif( ref( $val ) eq 'ARRAY' )
 		{
 			
-			my @values = @{ $val };
-			$val = sprintf( 'ANY(%s)', &LittleORM::Db::dbq( \@values, $dbh ) );
+			if( my @values = map { $self -> __prep_value_for_db_w_field( $_,
+										     $ta,
+										     $args, 
+										     $dbh ) } @{ $val } )
+			{
+				$val = sprintf( "(%s)", join( ',', @values ) );
+				$op = 'IN';
+			} else
+			{
+				$val = "ANY('{}')";
+			}
+			#$val = sprintf( 'ANY(%s)', &LittleORM::Db::dbq( \@values, $dbh ) );
 			
 		} elsif( LittleORM::Model::Field -> this_is_field( $val ) )
 		{ 
@@ -1434,7 +1503,7 @@ sub determine_op_and_col_and_correct_val
 			{
 				unless( $val -> model() eq $self )
 				{
-					$use_ta = $val -> determine_ta_for_field_from_another_model( $args -> { '_tables_to_select_from' } );
+					$use_ta = $val -> determine_ta_for_field_from_another_model( $args -> { '_tables_used' } );
 				}
 
 			}
@@ -1474,13 +1543,22 @@ sub determine_op_and_col_and_correct_val
 				if( ref( $rval ) eq 'ARRAY' )
 				{
 					
-					$val = sprintf( '(%s)', join( ',', map { &LittleORM::Db::dbq( &__prep_value_for_db( $class_attr, $_ ),
-												$dbh ) } @{ $rval } ) );
-					
+					$val = sprintf( '(%s)', join( ',', map { $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $_ ),
+														       $ta,
+														       $args,
+														       $dbh )  } @{ $rval } ) );
+
+				
 				} else
 				{
-					$val = &LittleORM::Db::dbq( &__prep_value_for_db( $class_attr, $rval ),
-							      $dbh );
+					#my $v = &__prep_value_for_db( $class_attr, $rval ); # wtf is this for
+					
+					$val = $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $rval ),
+										     $ta,
+										     $args,
+										     $dbh );
+
+
 				}
 			}
 			
@@ -1493,27 +1571,23 @@ sub determine_op_and_col_and_correct_val
 						      $dbh );
 			} else
 			{
-				my @values = map { &__prep_value_for_db( $class_attr, $_ ) } @{ $val };
+				my @values = map { $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $_ ),
+											 $ta,
+											 $args ) } @{ $val };
 				$val = sprintf( 'ANY(%s)', &LittleORM::Db::dbq( \@values, $dbh ) );
 			}
 			
-		} elsif( LittleORM::Model::Field -> this_is_field( $val ) )
-		{ 
-			my $use_ta = $ta;
-			if( $val -> model() )
-			{
-				unless( $val -> model() eq $self )
-				{
-					$use_ta = $val -> determine_ta_for_field_from_another_model( $args -> { '_tables_to_select_from' } );
-				}
-
-			}
-			$val = $val -> form_field_name_for_db_select( $use_ta );
-
 		} else
 		{
-			$val = &LittleORM::Db::dbq( &__prep_value_for_db( $class_attr, $val ),
-					      $dbh );
+
+			$val = $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $val ),
+								     $ta,
+								     $args,
+								     $dbh );
+
+
+			# $val = &LittleORM::Db::dbq( &__prep_value_for_db( $class_attr, $val ),
+			# 		      $dbh );
 		}
 		
 		$op = $field -> appropriate_op( $op );
@@ -1523,6 +1597,35 @@ sub determine_op_and_col_and_correct_val
 	return ( $op, $val, $col );
 }
 
+sub __prep_value_for_db_w_field
+{
+	my ( $self, $v, $ta, $args, $dbh ) = @_;
+
+	my $val = $v;
+
+	if( LittleORM::Model::Field -> this_is_field( $v ) )
+	{
+		my $use_ta = $ta;
+		if( $v -> model() )
+		{
+			unless( $v -> model() eq $self )
+			{
+				$use_ta = $v -> determine_ta_for_field_from_another_model( $args -> { '_tables_used' } );
+			}
+
+		}
+
+		$val = $v -> form_field_name_for_db_select( $use_ta );
+
+	} elsif( $dbh )
+	{
+		$val = &LittleORM::Db::dbq( $v,
+				      $dbh );
+	}
+	    
+
+	return $val;
+}
 
 sub __find_primary_key
 {

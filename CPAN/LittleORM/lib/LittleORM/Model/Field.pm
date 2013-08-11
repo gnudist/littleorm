@@ -6,6 +6,8 @@ use Moose;
 has 'model' => ( is => 'rw',
 		 isa => 'Str' );
 
+has 'table_alias' => ( is => 'rw', isa => 'Str' );
+
 has 'base_attr' => ( is => 'rw',
 		     isa => 'Str',
 		     default => '' );
@@ -53,41 +55,32 @@ use Scalar::Util 'blessed';
 	}
 }
 
-
-
-
-	  # 			                         
-          # '_tables_to_select_from' => [
-          #                               'site_dealers T1',
-          #                               'keys_serial T2',
-          #                               'new_keys T3'
-          #                             ]
-
-
-
-
-
 sub determine_ta_for_field_from_another_model
 {
 	my ( $self, $tables ) = @_;
 
-	my $rv = $self -> model() -> _db_table();
+	my $rv = $self -> table_alias();
 
-	if( $tables )
+	unless( $rv )
 	{
-eocEfjT38ttaOGys:
-		foreach my $t ( @{ $tables } )
+		$rv = $self -> model() -> _db_table();
+
+		if( $tables )
 		{
-			my ( $table, $alias ) = split( /\s+/, $t );
-			if( $table eq $rv )
+eocEfjT38ttaOGys:
+			foreach my $t ( @{ $tables } )
 			{
-				$rv = $alias;
-				last eocEfjT38ttaOGys;
+				my ( $table, $alias ) = split( /\s+/, $t );
+				if( $table eq $rv )
+				{
+					$rv = $alias;
+					last eocEfjT38ttaOGys;
+				}
 			}
 		}
 	}
-	return $rv;
 
+	return $rv;
 }
 
 sub this_is_field

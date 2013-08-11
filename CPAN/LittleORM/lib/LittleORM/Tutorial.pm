@@ -729,6 +729,27 @@ You can connect filters after they have been created with I<connect_filter()>. S
     $f -> connect_filter( f01 => $f1 );
 
 
+=head1 LEFT AND OUTER JOINS
+
+... are supported:
+
+    $f1 -> connect_filter_left_join( $f2 );
+
+Instead of "_left_join" you can use _join, _inner_join, _right_join,
+_left_outer_join, _right_outer_join to get the appropriate join in SQL
+query.
+
+Connection clause is optional (otherwise LittleORM will try to find FK
+between models):
+
+    $f1 -> connect_filter_left_join( $f2,
+                                     _clause => $c1 );
+
+
+=head1 Fieldsets, datasets, and LittleORM::Model::Field object.
+
+TODO: describe.
+
 
 =head1 API REFERENCE
 
