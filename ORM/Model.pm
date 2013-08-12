@@ -132,9 +132,13 @@ sub borrow_field
 
 	if( $attrname )
 	{
-		unless( exists $more{ 'type_preserve' } )
+		unless( exists $more{ 'db_field_type' } )
 		{
-			$more{ 'type_preserve' } = 1;
+			my $attr = $self -> meta() -> find_attribute_by_name( $attrname );
+			if( my $t = &__descr_attr( $attr, 'db_field_type' ) )
+			{
+				$more{ 'db_field_type' } = $t;
+			}
 		}
 	}
 
@@ -1389,30 +1393,36 @@ fhFwaEknUtY5xwNr:
 		}
 
 		my ( $op, $col ) = ( undef, undef );
+		my ( $val1_type, $val2_type ) = ( undef, undef );
 		my $ta = ( $args{ '_table_alias' } or $self -> _db_table() );
-		( $op, $val, $col ) = $self -> determine_op_and_col_and_correct_val( $attr, $val, $ta, \%args, $dbh ); # this
-														       # is
-														       # not
-														       # a
-														       # structured
-														       # method,
-														       # this
-														       # is
-														       # just
-														       # code
-														       # moved
-														       # away
-														       # from
-														       # growing
-														       # too
-														       # big
-														       # function,
-														       # hilarious
-														       # comment
-														       # formatting
-														       # btw,
-														       # thx
-														       # emacs
+
+		( $op,
+		  $val,
+		  $col,
+		  $val1_type,
+		  $val2_type ) = $self -> determine_op_and_col_and_correct_val( $attr, $val, $ta, \%args, $dbh ); # this
+														  # is
+														  # not
+														  # a
+														  # structured
+														  # method,
+														  # this
+														  # is
+														  # just
+														  # code
+														  # moved
+														  # away
+														  # from
+														  # growing
+														  # too
+														  # big
+														  # function,
+														  # hilarious
+														  # comment
+														  # formatting
+														  # btw,
+														  # thx
+														  # emacs
 		if( $op )
 		{
 			my $f = sprintf( "%s.%s",
@@ -1421,14 +1431,21 @@ fhFwaEknUtY5xwNr:
 					 
 			if( ORM::Model::Field -> this_is_field( $attr ) )
 			{
-				#$attr -> assert_model_soft( $self );
 				$f = $attr -> form_field_name_for_db_select( $attr -> table_alias() or $ta );
 			}
 
-			push @where_args, sprintf( '%s %s %s', 
+			my $cast = '';
+
+			if( $val1_type and $val2_type and ( $val1_type ne $val2_type ) )
+			{
+				$cast = '::' . $val1_type;
+			}
+
+			push @where_args, sprintf( '%s %s %s%s', 
 						   $f,
 						   $op,
-						   $val );
+						   $val,
+						   $cast );
 		}
 	}
 
@@ -1446,9 +1463,11 @@ sub determine_op_and_col_and_correct_val
 
 	my $op = '=';
 	my $col = 'UNUSED';
+	my ( $dbf_type1, $dbf_type2 ) = ( undef, undef );
 
 	if( ORM::Model::Field -> this_is_field( $attr ) )
 	{
+		$dbf_type1 = $attr -> db_field_type();
 		if( ref( $val ) eq 'HASH' )
 		{
 			my %t = %{ $val };
@@ -1457,9 +1476,6 @@ sub determine_op_and_col_and_correct_val
 				
 			if( ref( $rval ) eq 'ARRAY' )
 			{
-				# $val = sprintf( '(%s)', join( ',', map { &ORM::Db::dbq( $_,
-				# 							$dbh ) } @{ $rval } ) );
-				
 
 				$val = sprintf( '(%s)', join( ',', map { $self -> __prep_value_for_db_w_field( $_,
 													       $ta,
@@ -1468,9 +1484,6 @@ sub determine_op_and_col_and_correct_val
 					
 			} else
 			{
-				# $val = &ORM::Db::dbq( $rval,
-				# 		      $dbh );
-
 
 				$val = $self -> __prep_value_for_db_w_field( $rval,
 									     $ta,
@@ -1498,6 +1511,7 @@ sub determine_op_and_col_and_correct_val
 			
 		} elsif( ORM::Model::Field -> this_is_field( $val ) )
 		{ 
+			$dbf_type2 = $val -> db_field_type();
 			my $use_ta = $ta;
 			if( $val -> model() )
 			{
@@ -1594,7 +1608,7 @@ sub determine_op_and_col_and_correct_val
 		
 	}
 	
-	return ( $op, $val, $col );
+	return ( $op, $val, $col, $dbf_type1, $dbf_type2 );
 }
 
 sub __prep_value_for_db_w_field
