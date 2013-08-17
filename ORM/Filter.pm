@@ -445,13 +445,15 @@ sub connect_filter_complex
 		my ( $rest_args, $connecting_args ) = $self -> _look_for_connecting_args_in_args_and_do_it_in_a_compatible_way( @_ );
 		@_ = @{ $rest_args };
 
-		my ( $arg, $filter ) = $self -> _sanitize_args_for_connecting( ArgAndFilter => \@_ );
+		my $connecting_clause = $self -> _get_connecting_clause_from_connecting_args( $connecting_args );
+		my ( $arg, $filter ) = $self -> _sanitize_args_for_connecting( ArgAndFilter => \@_,
+									       ConnectingClause => $connecting_clause );
 		
 		map { $self -> push_clause( $_, $filter -> table_alias() ) } @{ $filter -> clauses() };
 
 		my $conn_sql = undef;
 		
-		if( my $connecting_clause = $self -> _get_connecting_clause_from_connecting_args( $connecting_args ) )
+		if( $connecting_clause )
 		{
 			$conn_sql = $connecting_clause -> sql();
 		} else
