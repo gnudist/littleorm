@@ -190,7 +190,9 @@ sub push_anything_appropriate
 
 		} elsif( $arg eq '_not_exists' )
 		{
-			assert( $val and $val -> isa( 'ORM::Filter' ) );
+			assert( $val and ( ( ref( $val ) eq 'HASH' )
+					   or
+					   $val -> isa( 'ORM::Filter' ) ) );
 			$self -> connect_filter_exists( 'NOT EXISTS', $val );
 
 		} elsif( blessed( $val ) and $val -> isa( 'ORM::Filter' ) )

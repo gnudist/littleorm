@@ -1512,7 +1512,7 @@ sub determine_op_and_col_and_correct_val
 		} elsif( ORM::Model::Field -> this_is_field( $val ) )
 		{ 
 			$dbf_type2 = $val -> db_field_type();
-			my $use_ta = $ta;
+			my $use_ta = ( $val -> table_alias() or $ta );
 			if( $val -> model() )
 			{
 				unless( $val -> model() eq $self )
