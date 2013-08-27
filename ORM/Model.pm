@@ -556,14 +556,12 @@ sub create
 		if( $rc == 1 )
 		{
 			$allok = 1;
-
+			my $data = $sth -> fetchrow_hashref();
 			foreach my $pk ( @pk )
 			{
 				unless( $args{ $pk -> name() } )
 				{
 					my $field = &__get_db_field_name( $pk );
-					my $data = $sth -> fetchrow_hashref();
-					%args = ();
 					$args{ $pk -> name() } = $data -> { $field };
 				}
 			}
@@ -583,10 +581,35 @@ sub create
 
 	if( $allok )
 	{
-		return $self -> get( %args );
+		return $self -> get( $self -> __leave_only_pk( %args ) );
 	}
 
 	assert( 0, sprintf( "%s: %s", $sql, &ORM::Db::errstr( $self -> __get_dbh( @args ) ) ) );
+}
+
+
+sub __leave_only_pk
+{
+	my $self = shift;
+
+	my %args = @_;
+	my %rv = ();
+
+	foreach my $attr ( $self -> __find_primary_keys() )
+	{
+		my $aname = $attr -> name();
+		if( exists $args{ $aname } )
+		{
+			$rv{ $aname } = $args{ $aname };
+		}
+	}
+	
+	unless( %rv )
+	{
+		%rv = %args;
+	}
+
+	return %rv;
 }
 
 sub __find_attr_by_its_db_field_name
