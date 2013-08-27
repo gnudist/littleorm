@@ -4,7 +4,12 @@ use Moose;
 
 sub appropriate_op
 {
-	my ( $self, $op ) = @_;
+	my ( $self, $op, $val ) = @_;
+
+	if( ( $op eq '=' ) and ( not defined $val ) )
+	{
+		$op = 'IS';
+	}
 
 	return $op;
 }

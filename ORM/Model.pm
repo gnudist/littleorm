@@ -1628,7 +1628,7 @@ sub determine_op_and_col_and_correct_val
 				# 		      $dbh );
 			}
 			
-			$op = $field -> appropriate_op( $op );
+			$op = $field -> appropriate_op( $op, $val );
 		}
 	}
 	
