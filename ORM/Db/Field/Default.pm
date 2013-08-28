@@ -6,7 +6,7 @@ sub appropriate_op
 {
 	my ( $self, $op, $val ) = @_;
 
-	if( ( $op eq '=' ) and ( not defined $val ) )
+	if( ( $op eq '=' ) and ( ( not defined $val ) or ( $val eq 'NULL' ) ) )
 	{
 		$op = 'IS';
 	}
