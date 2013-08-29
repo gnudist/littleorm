@@ -21,7 +21,7 @@ use ORM::Model::Field ();
 use Models::BookNoFK ();
 
 {
-	my @t = Models::AuthorInfo -> get_many( dead => undef );
+	my @t = Models::AuthorInfo -> get_many( dead => { 'IS', undef } );
 	ok( scalar @t, 'some are not dead' ); 
 }
 

@@ -667,12 +667,29 @@ sub translate_into_sql_clauses
 	for( my $i = 0; $i < $clauses_number; $i ++ )
 	{
 		my $clause = $self -> clauses() -> [ $i ];
-
-		push @all_clauses_together, $clause -> sql( @args );
-
+		push @all_clauses_together, $clause -> sql( $self -> _grep_out_non_system( @args ) );
 	}
 
 	return @all_clauses_together;
+}
+
+sub _grep_out_non_system
+{
+	my $self = shift;
+
+	my @args = @_;
+	my @rv = ();
+
+	while( my $arg = shift @args )
+	{
+		assert( my $val = shift @args );
+		if( $arg =~ /^_/ )
+		{
+			push @rv, ( $arg, $val );
+		}
+	}
+
+	return @rv;
 }
 
 sub _table_spec_with_join_support
