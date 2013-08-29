@@ -1238,6 +1238,7 @@ sub __form_additional_sql
 			while( my ( $k, $sort_order ) = each %{ $t } )
 			{
 				my $dbf = $k;
+
 				if( my $t = $self -> meta() -> find_attribute_by_name( $k ) )
 				{
 					$dbf = ( $args{ '_table_alias' }
@@ -1245,7 +1246,9 @@ sub __form_additional_sql
 						 $self -> _db_table() ) .
 						 '.' .
 						 &__get_db_field_name( $t );
+
 				}
+
 				push @pairs, sprintf( '%s %s',
 						      $dbf, 
 						      $sort_order );
@@ -1270,6 +1273,13 @@ sub __form_additional_sql
 						 $self -> _db_table() ) . 
 						 '.' .
 						 &__get_db_field_name( $t );
+				} elsif( ORM::Model::Field -> this_is_field( $k ) )
+				{
+					$dbf = $k -> form_field_name_for_db_select( $k -> table_alias()
+										    or
+										    $args{ '_table_alias' }
+										    or
+										    $self -> _db_table() );
 				}
 
 				push @pairs, sprintf( '%s %s',
@@ -1288,6 +1298,13 @@ sub __form_additional_sql
 				$dbf = ( $args{ '_table_alias' }
 					 or
 					 $self -> _db_table() ) . '.' . &__get_db_field_name( $t1 );
+			} elsif( ORM::Model::Field -> this_is_field( $t ) )
+			{
+				$dbf = $t -> form_field_name_for_db_select( $t -> table_alias()
+									    or
+									    $args{ '_table_alias' }
+									    or
+									    $self -> _db_table() );
 			}
 
 			$sql .= ' ORDER BY ' . $dbf;
