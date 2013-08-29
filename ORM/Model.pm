@@ -1504,10 +1504,32 @@ sub determine_op_and_col_and_correct_val
 	my $op = '=';
 	my $col = 'UNUSED';
 	my ( $dbf_type1, $dbf_type2 ) = ( undef, undef );
-
-	if( ORM::Model::Field -> this_is_field( $attr ) )
+	my $class_attr = undef;
+	
+	unless( ORM::Model::Field -> this_is_field( $attr ) )
 	{
+		assert( $class_attr = $self -> meta() -> find_attribute_by_name( $attr ),
+			sprintf( 'invalid non-system attribute in where: %s', $attr ) );
+		
+		if( &__descr_attr( $class_attr, 'ignore' ) )
+		{
+			$op = undef;
+		} else
+		{
+			$attr = $self -> borrow_field( $class_attr -> name() );
+			$col = &__get_db_field_name( $class_attr );
+		}
+	}
+
+	if( $op and ORM::Model::Field -> this_is_field( $attr ) )
+	{
+		unless( $class_attr )
+		{
+			assert( $class_attr = $attr -> model() -> meta() -> find_attribute_by_name( $attr -> base_attr() ) );
+		}
+
 		$dbf_type1 = $attr -> db_field_type();
+
 		if( ref( $val ) eq 'HASH' )
 		{
 			my %t = %{ $val };
@@ -1516,7 +1538,6 @@ sub determine_op_and_col_and_correct_val
 				
 			if( ref( $rval ) eq 'ARRAY' )
 			{
-
 				$val = sprintf( '(%s)', join( ',', map { $self -> __prep_value_for_db_w_field( $_,
 													       $ta,
 													       $args,
@@ -1524,12 +1545,10 @@ sub determine_op_and_col_and_correct_val
 					
 			} else
 			{
-
 				$val = $self -> __prep_value_for_db_w_field( $rval,
 									     $ta,
 									     $args,
 									     $dbh );
-
 
 			}
 			
@@ -1547,7 +1566,6 @@ sub determine_op_and_col_and_correct_val
 			{
 				$val = "ANY('{}')";
 			}
-			#$val = sprintf( 'ANY(%s)', &ORM::Db::dbq( \@values, $dbh ) );
 			
 		} elsif( ORM::Model::Field -> this_is_field( $val ) )
 		{ 
@@ -1564,91 +1582,13 @@ sub determine_op_and_col_and_correct_val
 			$val = $val -> form_field_name_for_db_select( $use_ta );
 		} else
 		{
-			$val = &ORM::Db::dbq( $val,
-					      $dbh );
-		}
-
-	} else
-	{
-		assert( my $class_attr = $self -> meta() -> find_attribute_by_name( $attr ),
-			sprintf( 'invalid non-system attribute in where: %s', $attr ) );
-
-		if( &__descr_attr( $class_attr, 'ignore' ) )
-		{
-			$op = undef;
-		} else
-		{
-
-			my $class_attr_isa = $class_attr -> { 'isa' };
-			$col = &__get_db_field_name( $class_attr );
-			my $field = ORM::Db::Field -> by_type( &__descr_attr( $class_attr, 'db_field_type' ) or $class_attr_isa );
-			
-			if( ref( $val ) eq 'HASH' )
-			{
-				if( $class_attr_isa =~ 'HashRef' )
-				{
-					1;
-					# next fhFwaEknUtY5xwNr;
-				} else
-				{
-					my %t = %{ $val };
-					my $rval = undef;
-					( $op, $rval ) = each %t;
-					
-					if( ref( $rval ) eq 'ARRAY' )
-					{
-						
-						$val = sprintf( '(%s)', join( ',', map { $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $_ ),
-															       $ta,
-															       $args,
-															       $dbh )  } @{ $rval } ) );
-						
-						
-					} else
-					{
-						#my $v = &__prep_value_for_db( $class_attr, $rval ); # wtf is this for
-						
-						$val = $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $rval ),
-											     $ta,
-											     $args,
-											     $dbh );
-						
-						
-					}
-				}
-				
-			} elsif( ref( $val ) eq 'ARRAY' )
-			{
-				
-				if( $class_attr_isa =~ 'ArrayRef' )
-				{
-					$val = &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $val ),
-							      $dbh );
-				} else
-				{
-					my @values = map { $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $_ ),
-												 $ta,
-												 $args ) } @{ $val };
-					$val = sprintf( 'ANY(%s)', &ORM::Db::dbq( \@values, $dbh ) );
-				}
-				
-			} else
-			{
-				
-				$val = $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $val ),
-									     $ta,
-									     $args,
-									     $dbh );
-				
-				
-				# $val = &ORM::Db::dbq( &__prep_value_for_db( $class_attr, $val ),
-				# 		      $dbh );
-			}
-			
-			$op = $field -> appropriate_op( $op, $val );
+			$val = $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $val ),
+								     $ta,
+								     $args,
+								     $dbh );
 		}
 	}
-	
+
 	return ( $op, $val, $col, $dbf_type1, $dbf_type2 );
 }
 
