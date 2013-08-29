@@ -682,7 +682,7 @@ sub _grep_out_non_system
 
 	while( my $arg = shift @args )
 	{
-		assert( my $val = shift @args );
+		my $val = shift @args;
 		if( $arg =~ /^_/ )
 		{
 			push @rv, ( $arg, $val );
