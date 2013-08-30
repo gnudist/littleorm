@@ -1538,14 +1538,14 @@ sub determine_op_and_col_and_correct_val
 				
 			if( ref( $rval ) eq 'ARRAY' )
 			{
-				$val = sprintf( '(%s)', join( ',', map { $self -> __prep_value_for_db_w_field( $_,
+				$val = sprintf( '(%s)', join( ',', map { $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $_ ),
 													       $ta,
 													       $args,
 													       $dbh ) } @{ $rval } ) );
 					
 			} else
 			{
-				$val = $self -> __prep_value_for_db_w_field( $rval,
+				$val = $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $rval ),
 									     $ta,
 									     $args,
 									     $dbh );
@@ -1555,7 +1555,7 @@ sub determine_op_and_col_and_correct_val
 		} elsif( ref( $val ) eq 'ARRAY' )
 		{
 			
-			if( my @values = map { $self -> __prep_value_for_db_w_field( $_,
+			if( my @values = map { $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $_ ),
 										     $ta,
 										     $args, 
 										     $dbh ) } @{ $val } )
