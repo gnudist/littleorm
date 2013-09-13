@@ -12,6 +12,7 @@ use Carp::Assert 'assert';
 use Scalar::Util 'blessed';
 use Module::Load ();
 use ORM::Model::Field ();
+use ORM::Model::Value ();
 
 sub _db_table{ assert( 0, '" _db_table " method must be redefined.' ) }
 
@@ -977,6 +978,16 @@ sub __prep_value_for_db
 	my ( $attr, $value ) = @_;
 
 	my $isa = $attr -> { 'isa' };
+	my $perform_coercion = 1;
+
+	if( ORM::Model::Value -> this_is_value( $value ) )
+	{
+		unless( $value -> orm_coerce() )
+		{
+			$perform_coercion = 0;
+		}
+		$value = $value -> value(); # %)
+	}
 
 	{
 		my $ftc = find_type_constraint( $isa );
@@ -992,7 +1003,9 @@ sub __prep_value_for_db
 
 	unless( ORM::Model::Field -> this_is_field( $value ) )
 	{
-		if( my $coerce_to = &__descr_attr( $attr, 'coerce_to' ) )
+		if( $perform_coercion
+		    and 
+		    ( my $coerce_to = &__descr_attr( $attr, 'coerce_to' ) ) )
 		{
 			$rv = $coerce_to -> ( $value );
 		}
