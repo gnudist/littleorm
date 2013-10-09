@@ -7,7 +7,7 @@ use Moose;
 # 			 isa => 'Str' );
 
 has 'value' => ( is => 'rw',
-		 isa => 'Str' );
+		 isa => 'Any' );
 
 has 'orm_coerce' => ( is => 'rw',
 		      isa => 'Bool',

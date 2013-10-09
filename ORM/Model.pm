@@ -989,6 +989,7 @@ sub __prep_value_for_db
 		$value = $value -> value(); # %)
 	}
 
+	if( $perform_coercion )
 	{
 		my $ftc = find_type_constraint( $isa );
 
