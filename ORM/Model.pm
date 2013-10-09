@@ -174,7 +174,6 @@ sub create_one_return_value_item
 				{
 					unless( ORM::Model::Field -> this_is_field( $f ) )
 					{
-
 						$f = $self -> borrow_field( $f,
 									    select_as => &__get_db_field_name( $self -> meta() -> find_attribute_by_name( $f ) ) );
 					}
@@ -184,6 +183,7 @@ sub create_one_return_value_item
 
 					$rv -> add_to_set( { model => $f -> model(),
 							     base_attr => $f -> base_attr(),
+							     orm_coerce => $f -> orm_coerce(),
 							     dbfield => $dbfield,
 							     value => $value } );
 				}
@@ -193,7 +193,15 @@ sub create_one_return_value_item
 			{
 				foreach my $f ( @{ $grpby } )
 				{
-					my ( $dbfield, $post_process, $base_attr, $model ) = ( undef, undef, undef, ( ref( $self ) or $self ) );
+					my ( $dbfield,
+					     $post_process,
+					     $base_attr,
+					     $orm_coerce,
+					     $model ) = ( undef,
+							  undef,
+							  undef,
+							  1,
+							  ( ref( $self ) or $self ) );
 
 					if( ORM::Model::Field -> this_is_field( $f ) )
 					{
@@ -201,6 +209,8 @@ sub create_one_return_value_item
 						$base_attr = $f -> base_attr();
 						$post_process = $f -> post_process();
 						$model = $f -> model();
+						$orm_coerce = $f -> orm_coerce();
+
 					} else
 					{
 						$dbfield = &__get_db_field_name( $self -> meta() -> find_attribute_by_name( $f ) );
@@ -210,6 +220,7 @@ sub create_one_return_value_item
 					$rv -> add_to_set( { model => $model,
 							     base_attr => $base_attr,
 							     dbfield => $dbfield,
+							     orm_coerce => $orm_coerce,
 							     value => $value } );
 				}
 			}
@@ -316,6 +327,7 @@ sub _sql_func_on_attr
 			{
 				my $field = { model => ( ref( $self ) or $self ),
 					      dbfield => $k,
+					      orm_coerce => 1,
 					      value => $v };
 
 				$set -> add_to_set( $field );

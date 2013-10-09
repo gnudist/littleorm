@@ -11,7 +11,7 @@ use ORM::DataSet ();
 
 use Models::Book ();
 use Models::Author ();
-
+use Data::Dumper 'Dumper';
 
 {
 	my $books_count = Models::Book -> count();

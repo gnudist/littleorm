@@ -38,6 +38,9 @@ has '_distinct' => ( is => 'rw',
 		     isa => 'Bool',
 		     default => 0 );
 
+has 'orm_coerce' => ( is => 'rw',
+		      isa => 'Bool',
+		      default => 1 );
 
 use Carp::Assert 'assert';
 use Scalar::Util 'blessed';
