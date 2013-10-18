@@ -1551,7 +1551,10 @@ sub determine_op_and_col_and_correct_val
 	{
 		unless( $class_attr )
 		{
-			assert( $class_attr = $attr -> model() -> meta() -> find_attribute_by_name( $attr -> base_attr() ) );
+			if( $attr -> base_attr() )
+			{
+				assert( $class_attr = $attr -> model() -> meta() -> find_attribute_by_name( $attr -> base_attr() ) );
+			}
 		}
 
 		$dbf_type1 = $attr -> db_field_type();
