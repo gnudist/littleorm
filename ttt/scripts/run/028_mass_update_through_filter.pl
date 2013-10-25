@@ -26,6 +26,13 @@ ok( my $another_author = Models::Author -> get( id => 2 ), 'a2' );
 Models::Book -> f( author => $author ) -> update( author => $another_author );
 
 
+# $book -> update( author => $another_author );
+
+
+# Models::Book -> update( author => $another_author,
+#                         _where => [ author => $author ] );
+
+
 ok( 1, "didnt crash" );
 
 $dbh -> disconnect();

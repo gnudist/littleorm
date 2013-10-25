@@ -647,8 +647,7 @@ pgmxcobWi7lULIJW:
 sub update
 {
 	my $self = shift;
-	my @args = @_;
-	my %args = @args;
+	my %args = @_;
 	
 	assert( my @pkattr = $self -> __find_primary_keys(), 'cant update without primary key' );
 
@@ -665,8 +664,16 @@ ETxc0WxZs0boLUm1:
 
 		my $aname = $attr -> name();
 
+		if( exists $args{ $aname } )
+		{
+			$self -> $aname( $args{ $aname } );
+		}
+
 		my $value = &__prep_value_for_db( $attr, $self -> $aname() );
-		push @upadte_pairs, sprintf( '%s=%s', &__get_db_field_name( $attr ), &ORM::Db::dbq( $value, $self -> __get_dbh() ) );
+
+		push @upadte_pairs, sprintf( '%s=%s',
+					     &__get_db_field_name( $attr ),
+					     &ORM::Db::dbq( $value, $self -> __get_dbh() ) );
 
 	}
 
