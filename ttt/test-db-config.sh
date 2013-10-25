@@ -1,6 +1,6 @@
 #!/bin/sh
 
-CREATETESTDB=1
+CREATETESTDB=0
 DROPTESTDB=1
 
 TESTDBNAME=kfnyres9iqundncn_littleorm_test_db

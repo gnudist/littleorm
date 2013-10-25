@@ -647,7 +647,8 @@ pgmxcobWi7lULIJW:
 sub update
 {
 	my $self = shift;
-	my $debug = shift;
+	my @args = @_;
+	my %args = @args;
 	
 	assert( my @pkattr = $self -> __find_primary_keys(), 'cant update without primary key' );
 
@@ -690,8 +691,7 @@ ETxc0WxZs0boLUm1:
 			   join( ',', @upadte_pairs ),
 			   $where );
 
-
-	if( $debug )
+	if( $args{ '_debug' } )
 	{
 		return $sql;
 	} else
