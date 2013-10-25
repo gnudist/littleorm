@@ -3,8 +3,8 @@ use strict;
 package ORM::Model::Value;
 use Moose;
 
-# has 'db_field_type' => ( is => 'rw',
-# 			 isa => 'Str' );
+has 'db_field_type' => ( is => 'rw',
+			 isa => 'Str' );
 
 has 'value' => ( is => 'rw',
 		 isa => 'Any' );
