@@ -23,7 +23,14 @@ ORM::Db -> init( my $dbh = &TestDB::dbconnect() );
 ok( my $author = Models::Author -> get( id => 1 ), 'a1' );
 ok( my $another_author = Models::Author -> get( id => 2 ), 'a2' );
 
-Models::Book -> f( author => $author ) -> update( author => $another_author );
+# Models::Book -> f( author => $author ) -> update( author => $another_author );
+
+
+my $sql = Models::Book -> update( author => $another_author,
+				  _where => [ author => $author ],
+				  _debug => 1 );
+
+print $sql, "\n";
 
 
 # $book -> update( author => $another_author );

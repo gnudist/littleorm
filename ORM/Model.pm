@@ -649,50 +649,9 @@ sub update
 	my $self = shift;
 	my %args = @_;
 	
-	assert( my @pkattr = $self -> __find_primary_keys(), 'cant update without primary key' );
+	my @upadte_pairs = $self -> __get_update_pairs_for_update_request( %args );
 
-	my @upadte_pairs = ();
-
-
-ETxc0WxZs0boLUm1:
-	foreach my $attr ( $self -> meta() -> get_all_attributes() )
-	{
-		if( $self -> __should_ignore_on_write( $attr ) )
-		{
-			next ETxc0WxZs0boLUm1;
-		}
-
-		my $aname = $attr -> name();
-
-		if( exists $args{ $aname } )
-		{
-			$self -> $aname( $args{ $aname } );
-		}
-
-		my $value = &__prep_value_for_db( $attr, $self -> $aname() );
-
-		push @upadte_pairs, sprintf( '%s=%s',
-					     &__get_db_field_name( $attr ),
-					     &ORM::Db::dbq( $value, $self -> __get_dbh() ) );
-
-	}
-
-	my $where = '1=2';
-
-	{
-		my %where_args = ();
-
-		foreach my $pkattr ( @pkattr )
-		{
-			my $pkname = $pkattr -> name();
-
-			$where_args{ $pkname } = $self -> $pkname();
-		}
-		my @where = $self -> __form_where( %where_args );
-
-		assert( $where = join( ' AND ', @where ) );
-	}
-
+	my $where = $self -> __form_update_request_where_part( %args );
 	my $sql = sprintf( 'UPDATE %s SET %s WHERE %s',
 			   $self -> _db_table(),
 			   join( ',', @upadte_pairs ),
@@ -710,6 +669,124 @@ ETxc0WxZs0boLUm1:
 			assert( 0, sprintf( "%s: %s", $sql, &ORM::Db::errstr( $self -> __get_dbh() ) ) );
 		}
 	}
+}
+
+
+sub __get_update_pairs_for_update_request
+{
+	my $self = shift;
+	my %args = @_;
+
+	my @upadte_pairs = ();
+
+
+	if( ref( $self ) )
+	{
+		@upadte_pairs = $self -> __get_update_pairs_for_update_request_called_from_instance( %args );
+	} else
+	{
+		@upadte_pairs = $self -> __get_update_pairs_for_update_request_called_from_class( %args );
+	}
+
+	return @upadte_pairs;
+
+}
+
+sub __get_update_pairs_for_update_request_called_from_instance
+{
+	my $self = shift;
+	my %args = @_;
+
+	my @upadte_pairs = ();
+
+ETxc0WxZs0boLUm1:
+	foreach my $attr ( $self -> meta() -> get_all_attributes() )
+	{
+		if( $self -> __should_ignore_on_write( $attr ) )
+		{
+			next ETxc0WxZs0boLUm1;
+		}
+		
+		my $aname = $attr -> name();
+		
+		if( exists $args{ $aname } )
+		{
+			$self -> $aname( $args{ $aname } );
+		}
+		
+		my $value = &__prep_value_for_db( $attr, $self -> $aname() );
+		
+		push @upadte_pairs, sprintf( '%s=%s',
+					     &__get_db_field_name( $attr ),
+					     &ORM::Db::dbq( $value, $self -> __get_dbh() ) );
+		
+	}
+	
+	return @upadte_pairs;
+
+}
+
+sub __get_update_pairs_for_update_request_called_from_class
+{
+	my $self = shift;
+	my %args = @_;
+
+	my @upadte_pairs = ();
+
+	while( my ( $k, $v ) = each %args )
+	{
+		unless( $k =~ /^_/ ) # only system props and no real class attrs should start with underscore
+		{
+			assert( my $attr = $self -> meta() -> find_attribute_by_name( $k ) );
+
+			if( $self -> __should_ignore_on_write( $attr ) )
+			{
+				assert( 0, 'attr which should be ignored passed into update:' . $k );
+			} else
+			{
+				my $value = &__prep_value_for_db( $attr, $v );
+				
+				push @upadte_pairs, sprintf( '%s=%s',
+							     &__get_db_field_name( $attr ),
+							     &ORM::Db::dbq( $value, $self -> __get_dbh() ) );
+			}
+
+		}
+	}
+	
+	return @upadte_pairs;
+}
+
+sub __form_update_request_where_part
+{
+	my $self = shift;
+	my %args = @_;
+
+	my @where = ();
+
+	if( my $w = $args{ '_where' } )
+	{
+		assert( ref( $w ) eq 'ARRAY' );
+		assert( not ref( $self ) ); # only class call, not instance call
+		@where = $self -> __form_where( @{ $w } );
+
+	} else
+	{
+		assert( my @pkattr = $self -> __find_primary_keys(), 'cant update without primary key' );
+
+		my %where_args = ();
+
+		foreach my $pkattr ( @pkattr )
+		{
+			my $pkname = $pkattr -> name();
+			$where_args{ $pkname } = $self -> $pkname();
+		}
+		@where = $self -> __form_where( %where_args );
+	}
+
+	assert( my $where = join( ' AND ', @where ) );
+
+	return $where;
 }
 
 sub copy
@@ -1020,7 +1097,6 @@ sub __prep_value_for_db
 
 	my $rv = $value;
 
-
 	unless( ORM::Model::Field -> this_is_field( $value ) )
 	{
 		if( $perform_coercion
@@ -1039,7 +1115,6 @@ sub __prep_value_for_db
 				my $his_pk = $value -> __find_primary_key();
 				$foreign_key_attr_name = $his_pk -> name();
 			}
-			
 			$rv = $value -> $foreign_key_attr_name();
 		}
 	}

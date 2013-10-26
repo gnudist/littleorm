@@ -58,7 +58,6 @@ sub dbq
 {
 	my ( $v, $dbh ) = @_;
 
-
 	unless( $dbh )
 	{
 		$dbh = $cached_dbh;
@@ -67,7 +66,13 @@ sub dbq
 	assert( &dbh_is_ok( $dbh ) );
 
 	return $dbh -> quote( $v );
-
+	# my $rv = undef;
+	# eval { $rv = $dbh -> quote( $v ); };
+	# if( my $t = $@ )
+	# {
+	# 	assert( 0, $t );
+	# }
+	# return $rv;
 }
 
 sub getrow
