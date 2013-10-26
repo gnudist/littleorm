@@ -23,14 +23,26 @@ ORM::Db -> init( my $dbh = &TestDB::dbconnect() );
 ok( my $author = Models::Author -> get( id => 1 ), 'a1' );
 ok( my $another_author = Models::Author -> get( id => 2 ), 'a2' );
 
-# Models::Book -> f( author => $author ) -> update( author => $another_author );
+my @a1books = map { $_ -> id() } Models::Book -> f( author => $author ) -> get_many();
 
+my $rv = Models::Book -> f( author => $author ) -> update( author => $another_author );
 
-my $sql = Models::Book -> update( author => $another_author,
-				  _where => [ author => $author ],
-				  _debug => 1 );
+is( scalar @a1books, $rv, 'count match' );
 
-print $sql, "\n";
+foreach my $bid ( @a1books )
+{
+  	my $rv = Models::Book -> f( id => $bid,
+  				    author => $another_author ) -> update( author => $author );
+	
+	is( $rv, 1, 'change was really made and now rolled back' );
+	
+}
+
+# my $sql = Models::Book -> update( author => $another_author,
+# 				  _where => [ author => $author ],
+# 				  _debug => 1 );
+
+# print $sql, "\n";
 
 
 # $book -> update( author => $another_author );

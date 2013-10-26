@@ -33,7 +33,6 @@ sub sql
 	my $self = shift;
 
 	my @rv = $self -> gen_clauses( @_ );
-
 	return sprintf( ' ( %s ) ', join( ' '. $self -> logic() . ' ', @rv ) );
 }
 
@@ -74,7 +73,7 @@ sub gen_clauses
 
 	unless( @rv )
 	{
-		@rv = ( '1=1' );
+		@rv = ( '2=2' );
 	}
 
 	return @rv;

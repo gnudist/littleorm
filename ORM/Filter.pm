@@ -153,7 +153,7 @@ sub push_anything_appropriate
 	my $self = shift;
 	my @args = @_;
 
-	my @clauseargs = ( _where => '1=1' );
+	my @clauseargs = ();
 	assert( my $class = $self -> model(), 'must know my model' );
 
 	@args = @{ $self -> model() -> _disambiguate_filter_args( \@args ) };
@@ -212,6 +212,10 @@ sub push_anything_appropriate
 	}
 
 	{
+		unless( @clauseargs )
+		{
+			@clauseargs = ( _where => '1=1' );
+		}
 		my $clause = ORM::Clause -> new( model => $class,
 						 cond => \@clauseargs,
 						 table_alias => $self -> table_alias() );
@@ -668,7 +672,8 @@ sub translate_into_sql_clauses
 	for( my $i = 0; $i < $clauses_number; $i ++ )
 	{
 		my $clause = $self -> clauses() -> [ $i ];
-		push @all_clauses_together, $clause -> sql( $self -> _grep_out_non_system( @args ) );
+		my $sql = $clause -> sql( $self -> _grep_out_non_system( @args ) );
+		push @all_clauses_together, $sql;
 	}
 
 	return @all_clauses_together;

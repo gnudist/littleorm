@@ -14,7 +14,8 @@ has 'title' => ( is => 'rw',
 has 'author' => ( is => 'rw',
 		  isa => 'Models::Author',
 		  metaclass => 'ORM::Meta::Attribute',
-		  description => { foreign_key => 'Models::Author' } );
+		  description => { foreign_key => 'Models::Author',
+				   db_field_type => 'int' } );
 
 has 'price' => ( is => 'rw', isa => 'Str' );
 

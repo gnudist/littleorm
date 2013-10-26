@@ -657,18 +657,24 @@ sub update
 			   join( ',', @upadte_pairs ),
 			   $where );
 
+	my $rc = undef;
+
 	if( $args{ '_debug' } )
 	{
 		return $sql;
 	} else
 	{
-		my $rc = &ORM::Db::doit( $sql, $self -> __get_dbh() );
+		$rc = &ORM::Db::doit( $sql, $self -> __get_dbh() );
 		
-		unless( $rc == 1 )
+		if( ref( $self ) )
 		{
-			assert( 0, sprintf( "%s: %s", $sql, &ORM::Db::errstr( $self -> __get_dbh() ) ) );
+			if( $rc != 1 )
+			{
+				assert( 0, sprintf( "%s: %s", $sql, &ORM::Db::errstr( $self -> __get_dbh() ) ) );
+			}
 		}
 	}
+	return $rc;
 }
 
 
@@ -766,9 +772,14 @@ sub __form_update_request_where_part
 
 	if( my $w = $args{ '_where' } )
 	{
-		assert( ref( $w ) eq 'ARRAY' );
 		assert( not ref( $self ) ); # only class call, not instance call
-		@where = $self -> __form_where( @{ $w } );
+		if( ref( $w ) eq 'ARRAY' )
+		{
+			@where = $self -> __form_where( @{ $w } );
+		} else
+		{
+			push @where, $w;
+		}
 
 	} else
 	{
@@ -1480,6 +1491,39 @@ sub __form_additional_sql_groupby
 	return $rv;
 }
 
+sub __process_clause_sys_arg_in_form_where
+{
+	my ( $self, $val, $args ) = @_;
+
+	if( ref( $val ) eq 'ARRAY' )
+	{
+		my %more_args = ();
+		
+		if( my $ta = $args -> { '_table_alias' } )
+		{
+			$more_args{ 'table_alias' } = $ta;
+		}
+		
+		$val = $self -> clause( @{ $val },
+					%more_args );
+		
+		assert( ref( $val ) eq 'ORM::Clause' );
+	} else
+	{
+		assert( ref( $val ) eq 'ORM::Clause' );
+		if( my $ta = $args -> { '_table_alias' } )
+		{
+			unless( $val -> table_alias() )
+			{
+				my $copy = bless( { %{ $val } }, ref $val );
+				$val = $copy;
+				$val -> table_alias( $ta );
+			}
+		}
+	}
+	return $val;
+}
+
 sub __form_where
 {
 	my $self = shift;
@@ -1488,14 +1532,12 @@ sub __form_where
 	my %args = @args;
 
 	my @where_args = ();
-
 	my $dbh = $self -> __get_dbh( @args );
 
 
 fhFwaEknUtY5xwNr:
 	while( my $attr = shift @args )
 	{
-
 		my $val = shift @args;
 
 		if( $attr eq '_where' )
@@ -1504,35 +1546,9 @@ fhFwaEknUtY5xwNr:
 
 		} elsif( $attr eq '_clause' )
 		{
-			if( ref( $val ) eq 'ARRAY' )
-			{
-				my %more_args = ();
-
-				if( my $ta = $args{ '_table_alias' } )
-				{
-					$more_args{ 'table_alias' } = $ta;
-				}
-
-				$val = $self -> clause( @{ $val },
-							%more_args );
-
-				assert( ref( $val ) eq 'ORM::Clause' );
-			} else
-			{
-				assert( ref( $val ) eq 'ORM::Clause' );
-				if( my $ta = $args{ '_table_alias' } )
-				{
-					unless( $val -> table_alias() )
-					{
-						my $copy = bless( { %{ $val } }, ref $val );
-						$val = $copy;
-						$val -> table_alias( $ta );
-					}
-				}
-			}
-
+			$val = $self -> __process_clause_sys_arg_in_form_where( $val, 
+										\%args );
 			push @where_args, $val -> sql();
-
 		}
 
 		if( $attr =~ /^_/ ) # skip system agrs, they start with underscore
@@ -1573,9 +1589,16 @@ fhFwaEknUtY5xwNr:
 														  # emacs
 		if( $op )
 		{
-			my $f = sprintf( "%s.%s",
-					 $ta,
-					 $col );
+			my $f = $col;
+
+			my $include_table_alias_into_sql = 1;
+
+			unless( ( exists $args{ '_include_table_alias_into_sql' } )
+				and
+				( $args{ '_include_table_alias_into_sql' } == 0 ) )
+			{
+				$f = $ta . '.' . $f;
+			}
 					 
 			if( ORM::Model::Field -> this_is_field( $attr ) )
 			{
@@ -1599,9 +1622,10 @@ fhFwaEknUtY5xwNr:
 
 	unless( @where_args )
 	{
-		@where_args = ( '1=1' );
+		@where_args = ( '3=3' );
 	}
-
+	# print Data::Dumper::Dumper( \@where_args );
+	# print Carp::longmess() . "\n\n\n";
 	return @where_args;
 }
 
@@ -1693,6 +1717,10 @@ sub determine_op_and_col_and_correct_val
 			$val = $val -> form_field_name_for_db_select( $use_ta );
 		} else
 		{
+			if( ORM::Model::Value -> this_is_value( $val ) )
+			{
+				$dbf_type2 = $val -> db_field_type();
+			}
 			$val = $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $val ),
 								     $ta,
 								     $args,

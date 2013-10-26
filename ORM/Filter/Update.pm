@@ -6,21 +6,22 @@ package ORM::Filter;
 # update related subs moved here to keep module file size from growing
 # too much
 
-use Data::Dumper 'Dumper';
-
 sub update
 {
 	my $self = shift;
-	my @update_args = @_;
 
+	assert( scalar @{ $self -> joined_tables() } == 0,
+		'update is not defined for filter with joined tables' );
+
+	assert( ( not defined $self -> returning_field() ),
+		'update is not defined for filter with returning_field() set' );
+
+	map { assert( $_ -> model() eq $self -> model() ); } @{ $self -> clauses() };
+
+	return $self -> call_orm_method( 'update',
+					 @_,
+					 _include_table_alias_into_sql => 0 );
 	
-	my @t = $self -> model() -> __form_where( @update_args );
-	print Dumper( \@t );
-
-
-	print "imma out\n";
-	
-
 }
 
 42;
