@@ -25,7 +25,9 @@ my $author = ORM::Model::Value -> new( db_field_type => 'varchar',
 
 my $rv = Models::Book -> f( author => $author ) -> get_many( _debug => 1 );
 
-print $rv, "\n";
+is( $rv,
+    "SELECT  T1.author,T1.id,T1.title,T1.price FROM book T1 WHERE  ( T1.author = '100'::int ) ",
+    'hardcoded correct sql match' );
 
 
 
