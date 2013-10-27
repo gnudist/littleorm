@@ -751,10 +751,30 @@ sub __get_update_pairs_for_update_request_called_from_class
 			} else
 			{
 				my $value = &__prep_value_for_db( $attr, $v );
-				
-				push @upadte_pairs, sprintf( '%s=%s',
+				my $typecast = '';
+
+				if( ORM::Model::Field -> this_is_field( $value ) )
+				{
+					if( ( my $t1 = &__descr_attr( $attr, 'db_field_type' ) )
+					    and
+					    ( my $t2 = $value -> db_field_type() ) )
+					{
+						unless( $t1 eq $t2 )
+						{
+							$typecast = '::' . $t1;
+						}
+					}
+					$value = $value -> form_field_name_for_db_select();
+
+				} else
+				{
+					$value = &ORM::Db::dbq( $value, $self -> __get_dbh() );
+				}
+
+				push @upadte_pairs, sprintf( '%s=%s%s',
 							     &__get_db_field_name( $attr ),
-							     &ORM::Db::dbq( $value, $self -> __get_dbh() ) );
+							     $value,
+							     $typecast );
 			}
 
 		}

@@ -38,6 +38,17 @@ foreach my $bid ( @a1books )
 	
 }
 
+
+
+my $sql = Models::Book -> f( author => $author ) -> update( author => Models::Book -> borrow_field( 'title' ),
+							    _debug => 1 );
+
+is( $sql, 
+    "UPDATE book SET author=title::int WHERE  ( author = '1' ) ",
+    'sql req generated as palnned' );
+
+
+
 # my $sql = Models::Book -> update( author => $another_author,
 # 				  _where => [ author => $author ],
 # 				  _debug => 1 );

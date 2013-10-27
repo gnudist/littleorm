@@ -9,7 +9,9 @@ extends 'ORM::GenericID';
 sub _db_table { 'book' }
 
 has 'title' => ( is => 'rw',
-		 isa => 'Str' );
+		 isa => 'Str',
+		 metaclass => 'ORM::Meta::Attribute',
+		 description => { db_field_type => 'varchar' } );
 
 has 'author' => ( is => 'rw',
 		  isa => 'Models::Author',
