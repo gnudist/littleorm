@@ -647,7 +647,16 @@ pgmxcobWi7lULIJW:
 sub update
 {
 	my $self = shift;
-	my %args = @_;
+
+	my %args = ();
+
+	if( scalar @_ == 1 )
+	{
+		$args{ '_debug' } = $_[ 0 ];
+	} else
+	{
+		%args = @_;
+	}
 	
 	my @upadte_pairs = $self -> __get_update_pairs_for_update_request( %args );
 
