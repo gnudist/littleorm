@@ -559,47 +559,149 @@ sub create
 		return $sql;
 	}
 
-	my $allok = 0;
+	my $allok = undef;
 
-	if( my @pk = $self -> __find_primary_keys() )
+	# if( my @pk = $self -> __find_primary_keys() )
 	{
 		my $sth = &ORM::Db::prep( $sql, $self -> __get_dbh( @args ) );
 		my $rc = $sth -> execute();
 
 		if( $rc == 1 )
 		{
-			$allok = 1;
+			# $allok = 1;
 			my $data = $sth -> fetchrow_hashref();
-			foreach my $pk ( @pk )
-			{
-				unless( $args{ $pk -> name() } )
-				{
-					my $field = &__get_db_field_name( $pk );
-					$args{ $pk -> name() } = $data -> { $field };
-				}
-			}
+			$allok = $self -> create_one_return_value_item( $data, @args );
+
+			# foreach my $pk ( @pk )
+			# {
+			# 	unless( $args{ $pk -> name() } )
+			# 	{
+			# 		my $field = &__get_db_field_name( $pk );
+			# 		$args{ $pk -> name() } = $data -> { $field };
+			# 	}
+			# }
 		}
 
 		$sth -> finish();
 
-	} else
-	{
-		my $rc = &ORM::Db::doit( $sql, $self -> __get_dbh( @args ) );
-
-		if( $rc == 1 )
-		{
-			$allok = 1;
-		}
 	}
+ # else
+ # 	{
+ # 		my $rc = &ORM::Db::doit( $sql, $self -> __get_dbh( @args ) );
+
+ # 		if( $rc == 1 )
+ # 		{
+ # 			$allok = 1;
+ # 		}
+ # 	}
 
 	if( $allok )
 	{
-		return $self -> get( $self -> __leave_only_pk( %args ) );
+		return $allok; #$self -> get( $self -> __leave_only_pk( %args ) );
 	}
 
 	assert( 0, sprintf( "%s: %s", $sql, &ORM::Db::errstr( $self -> __get_dbh( @args ) ) ) );
 }
 
+
+
+
+
+sub _process_create_many_args
+{
+	my $self = shift;
+
+	my @args = @_;
+
+
+
+	my $new_records_data = ();
+	my $extra_args_data = {};
+
+	my $index_of_first_args_el_which_is_not_ref = ${ [ grep { not ref( $args[ $_ ] ) } ( 0 .. $#args ) ] }[ 0 ];
+
+	if( $index_of_first_args_el_which_is_not_ref )
+	{
+
+		@{ $new_records_data } = @args[ 0 .. $index_of_first_args_el_which_is_not_ref - 1 ];
+		%{ $extra_args_data } = @args[ $index_of_first_args_el_which_is_not_ref .. $#args ];
+	} else
+	{
+		$new_records_data = \@args;
+	}
+
+	return ( $new_records_data,
+		 $extra_args_data );
+
+}
+
+sub create_many
+{
+	my $self = shift;
+
+	my ( $new_records_data,
+	     $extra_args_data ) = $self -> _process_create_many_args( @_ );
+
+	{
+		assert( my $cnt = scalar @{ $new_records_data } );
+
+		for( my $i = 0; $i < $cnt; $i ++ )
+		{
+			my %args = $self -> __correct_insert_args( @{ $new_records_data -> [ $i ] } );
+			$new_records_data -> [ $i ] = \%args;
+		}
+	}
+
+	my $fields = undef;
+	my @values_sets = ();
+	my $dbh = $self -> __get_dbh( %{ $extra_args_data } );
+
+	foreach my $nrd ( @{ $new_records_data } )
+	{
+		my ( $f, $v ) = $self -> __form_fields_and_values_for_insert_sql( %{ $nrd } );
+		assert( $f and $v );
+		unless( defined $fields )
+		{
+			$fields = $f;
+		}
+		push @values_sets, join( ',', map { &ORM::Db::dbq( $_, $dbh ) } @{ $v } );
+	}
+
+	my $sql = sprintf( "INSERT INTO %s (%s) VALUES %s RETURNING *",
+			   $self -> _db_table(),
+			   join( ',', @{ $fields } ),
+			   join( ',', map { '(' . $_ . ')' } @values_sets ) );
+			   
+
+	if( $extra_args_data -> { '_debug' } )
+	{
+		return $sql;
+	}
+
+	my @rv = ();
+
+	{
+		my $sth = &ORM::Db::prep( $sql, $self -> __get_dbh( %{ $extra_args_data } ) );
+		my $rc = $sth -> execute();
+
+		if( $rc == scalar @{ $new_records_data } )
+		{
+			while( my $data = $sth -> fetchrow_hashref() )
+			{
+				my $o = $self -> create_one_return_value_item( $data, %{ $extra_args_data } );
+				push @rv, $o;
+			}
+
+		} else
+		{
+			assert( 0, 'insert error' );
+		}
+		
+		$sth -> finish();
+	}
+
+	return @rv;
+}
 
 sub __leave_only_pk
 {
@@ -1060,16 +1162,14 @@ sub __correct_insert_args
 	return %args;
 }
 
-sub __form_insert_sql
+
+sub __form_fields_and_values_for_insert_sql
 {
 	my $self = shift;
-
 	my %args = @_;
 
 	my @fields = ();
 	my @values = ();
-
-	my $dbh = $self -> __get_dbh( %args );
 
 XmXRGqnrCTqWH52Z:
 	while( my ( $arg, $val ) = each %args )
@@ -1096,15 +1196,29 @@ XmXRGqnrCTqWH52Z:
 		push @values, $val;
 	}
 
-	my $sql = sprintf( "INSERT INTO %s (%s) VALUES (%s)",
-			   $self -> _db_table(),
-			   join( ',', @fields ),
-			   join( ',', map { &ORM::Db::dbq( $_, $dbh ) } @values ) );
+	return ( \@fields, \@values );
 
-	if( my @pk = $self -> __find_primary_keys() )
-	{
-		$sql .= " RETURNING " . join( ',', map { &__get_db_field_name( $_ ) } @pk );
-	}
+}
+
+
+
+sub __form_insert_sql
+{
+	my $self = shift;
+
+	my %args = @_;
+	my ( $fields, $values ) = $self -> __form_fields_and_values_for_insert_sql( %args );
+	
+	my $dbh = $self -> __get_dbh( %args );
+	my $sql = sprintf( "INSERT INTO %s (%s) VALUES (%s) RETURNING *",
+			   $self -> _db_table(),
+			   join( ',', @{ $fields } ),
+			   join( ',', map { &ORM::Db::dbq( $_, $dbh ) } @{ $values } ) );
+
+	# if( my @pk = $self -> __find_primary_keys() )
+	# {
+	# 	$sql .= " RETURNING " . join( ',', map { &__get_db_field_name( $_ ) } @pk );
+	# }
 
 	return $sql;
 }

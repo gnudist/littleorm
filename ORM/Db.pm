@@ -14,7 +14,6 @@ sub dbh_is_ok
 
 	if( $dbh )
 	{
-
 		unless( $dbh -> ping() )
 		{
 			$rv = undef;
@@ -63,7 +62,7 @@ sub dbq
 		$dbh = $cached_dbh;
 	}
 
-	assert( &dbh_is_ok( $dbh ) );
+	# assert( &dbh_is_ok( $dbh ) );
 
 	return $dbh -> quote( $v );
 	# my $rv = undef;
