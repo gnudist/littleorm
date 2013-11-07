@@ -1985,11 +1985,11 @@ sub __get_dbh
 
 	my %args = @_;
 
-	my $dbh = &ORM::Db::dbh_is_ok( $self -> __get_class_dbh() );
+	my $dbh = $self -> __get_class_dbh(); # here 1
 
 	unless( $dbh )
 	{
-		if( my $t = &ORM::Db::dbh_is_ok( $args{ '_dbh' } ) )
+		if( my $t = $args{ '_dbh' } )
 		{
 			$dbh = $t;
 			$self -> __set_class_dbh( $dbh );
@@ -1999,7 +1999,7 @@ sub __get_dbh
 
 	unless( $dbh )
 	{
-		if( my $t = &ORM::Db::dbh_is_ok( &ORM::Db::get_dbh() ) )
+		if( my $t = &ORM::Db::get_dbh() )
 		{
 			$dbh = $t;
 			$self -> __set_class_dbh( $dbh );
