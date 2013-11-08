@@ -1985,7 +1985,7 @@ sub __get_dbh
 
 	my %args = @_;
 
-	my $dbh = $self -> __get_class_dbh(); # here 1
+	my $dbh = &ORM::Db::dbh_is_ok( $self -> __get_class_dbh() ); # here 1
 
 	unless( $dbh )
 	{
