@@ -2,7 +2,10 @@ use strict;
 
 package ORM::Db;
 
-my $cached_dbh = undef;
+# my $cached_dbh = undef;
+
+my $cached_read_dbh = undef;
+my $cached_write_dbh = undef;
 
 use Carp::Assert 'assert';
 
@@ -44,13 +47,36 @@ sub init
 		$dbh = $self;
 	}
 
-	$cached_dbh = $dbh;
+	if( ref( $dbh ) eq 'HASH' )
+	{
+		my ( $rdbh, $wdbh ) = @{ $dbh }{ 'read', 'write' };
+		assert( $rdbh and $wdbh );
 
+		$cached_read_dbh = $rdbh;
+		$cached_write_dbh = $wdbh;
+
+	} else
+	{
+		# $cached_dbh = $dbh;
+		
+		$cached_read_dbh = $dbh;
+		$cached_write_dbh = $dbh;
+	}
 }
 
 sub get_dbh
 {
-	return $cached_dbh;
+	return &get_read_dbh();
+}
+
+sub get_read_dbh
+{
+	return $cached_read_dbh;
+}
+
+sub get_write_dbh
+{
+	return $cached_write_dbh;
 }
 
 sub dbq
@@ -59,19 +85,10 @@ sub dbq
 
 	unless( $dbh )
 	{
-		$dbh = $cached_dbh;
+		$dbh = $cached_read_dbh;
 	}
 
-	# assert( &dbh_is_ok( $dbh ) );
-
 	return $dbh -> quote( $v );
-	# my $rv = undef;
-	# eval { $rv = $dbh -> quote( $v ); };
-	# if( my $t = $@ )
-	# {
-	# 	assert( 0, $t );
-	# }
-	# return $rv;
 }
 
 sub getrow
@@ -80,10 +97,10 @@ sub getrow
 
 	unless( $dbh )
 	{
-		$dbh = $cached_dbh;
+		$dbh = $cached_read_dbh;
 	}
 
-	assert( &dbh_is_ok( $dbh ) );
+	# assert( &dbh_is_ok( $dbh ) );
 
 	return $dbh -> selectrow_hashref( $sql );
 
@@ -95,10 +112,11 @@ sub prep
 
 	unless( $dbh )
 	{
-		$dbh = $cached_dbh;
+		assert( 0, 'cant safely fall back to read dbh here' );
+		# $dbh = $cached_read_dbh;
 	}
 
-	assert( &dbh_is_ok( $dbh ) );
+	# assert( &dbh_is_ok( $dbh ) );
 
 	return $dbh -> prepare( $sql );
 	
@@ -110,11 +128,11 @@ sub doit
 
 	unless( $dbh )
 	{
-		$dbh = $cached_dbh;
+		assert( 0, 'cant safely fall back to read dbh here too' );
+		#$dbh = $cached_dbh;
 	}
 
-	assert( &dbh_is_ok( $dbh ) );
-
+	#assert( &dbh_is_ok( $dbh ) );
 
 	return $dbh -> do( $sql );
 }
@@ -123,11 +141,11 @@ sub errstr
 {
 	my $dbh = shift;
 
-	unless( $dbh )
-	{
-		$dbh = $cached_dbh;
-	}
-	assert( &dbh_is_ok( $dbh ) );
+	# unless( $dbh )
+	# {
+	# 	$dbh = $cached_dbh;
+	# }
+	# assert( &dbh_is_ok( $dbh ) );
 	
 	return $dbh -> errstr();
 }
@@ -138,7 +156,7 @@ sub nextval
 
 	unless( $dbh )
 	{
-		$dbh = $cached_dbh;
+		$dbh = $cached_write_dbh;
 	}
 
 	my $sql = sprintf( "SELECT nextval(%s) AS newval", &dbq( $sn, $dbh ) );

@@ -1,9 +1,10 @@
-use ORM::Db;
-use ORM::Db::Field;
+use ORM::Db ();
+use ORM::Db::Field ();
+use ORM::Meta::LittleORMHasDbh ();
 
 package ORM::Model;
 
-use Moose;
+use Moose -traits => 'LittleORMHasDbh';
 use Moose::Util::TypeConstraints;
 
 has '_rec' => ( is => 'rw', isa => 'HashRef', required => 1, metaclass => 'ORM::Meta::Attribute', description => { ignore => 1 } );
@@ -13,6 +14,7 @@ use Scalar::Util 'blessed';
 use Module::Load ();
 use ORM::Model::Field ();
 use ORM::Model::Value ();
+use ORM::Model::Dbh ();
 
 sub _db_table{ assert( 0, '" _db_table " method must be redefined.' ) }
 
@@ -1977,73 +1979,6 @@ sub __descr_attr
 	}
 
 	return $rv;
-}
-
-sub __get_dbh
-{
-	my $self = shift;
-
-	my %args = @_;
-
-	my $dbh = &ORM::Db::dbh_is_ok( $self -> __get_class_dbh() ); # here 1
-
-	unless( $dbh )
-	{
-		if( my $t = $args{ '_dbh' } )
-		{
-			$dbh = $t;
-			$self -> __set_class_dbh( $dbh );
-			ORM::Db -> __set_default_if_not_set( $dbh );
-		}
-	}
-
-	unless( $dbh )
-	{
-		if( my $t = &ORM::Db::get_dbh() )
-		{
-			$dbh = $t;
-			$self -> __set_class_dbh( $dbh );
-		}
-	}
-
-	assert( &ORM::Db::dbh_is_ok( $dbh ), 'this method is supposed to return valid dbh' );
-
-	return $dbh;
-}
-
-sub __get_class_dbh
-{
-
-	my $self = shift;
-
-	my $calling_package = ( ref( $self ) or $self );
-
-	my $dbh = undef;
-
-	{
-		no strict "refs";
-		$dbh = ${ $calling_package . "::_dbh" };
-	}
-
-	return $dbh;
-
-	
-}
-
-sub __set_class_dbh
-{
-	my $self = shift;
-
-	my $calling_package = ( ref( $self ) or $self );
-
-	my $dbh = shift;
-
-
-	{
-		no strict "refs";
-		${ $calling_package . "::_dbh" } = $dbh;
-	}
-
 }
 
 42;
