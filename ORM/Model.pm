@@ -61,11 +61,20 @@ sub _clear
 	return 1;
 }
 
+sub __for_read
+{
+	return ( _for_what => 'read' );
+}
+
+sub __for_write
+{
+	return ( _for_what => 'write' );
+}
+
 sub reload
 {
 	my $self = shift;
 
-	
 	if( my @pk = $self -> __find_primary_keys() )
 	{
 		my %get_args = ();
@@ -81,8 +90,7 @@ sub reload
 		my $sql = $self -> __form_get_sql( %get_args,
 						   _limit => 1 );
 
-		my $rec = &ORM::Db::getrow( $sql, $self -> __get_dbh() );
-
+		my $rec = &ORM::Db::getrow( $sql, $self -> __get_dbh( &__for_read() ) );
 		$self -> _rec( $rec );
 
 	} else
@@ -100,7 +108,6 @@ sub clone
 	return $class -> new( _rec => $self -> _rec() );
 }
 
-
 sub get
 {
 	my $self = shift;
@@ -115,7 +122,8 @@ sub get
 		return $sql;
 	}
 
-	my $rec = &ORM::Db::getrow( $sql, $self -> __get_dbh( @args ) );
+	my $rec = &ORM::Db::getrow( $sql, $self -> __get_dbh( @args,
+							      &__for_read() ) );
 
 	my $rv = undef;
 
@@ -281,7 +289,8 @@ sub get_many
 		return $sql;
 	}
 
-	my $sth = &ORM::Db::prep( $sql, $self -> __get_dbh( @args ) );
+	my $sth = &ORM::Db::prep( $sql, $self -> __get_dbh( @args,
+							    &__for_read() ) );
 	$sth -> execute();
 
 	while( my $data = $sth -> fetchrow_hashref() )
@@ -314,14 +323,15 @@ sub _sql_func_on_attr
 		return $sql;
 	}
 
-	my $sth = &ORM::Db::prep( $sql, $self -> __get_dbh( @args ) );
+	my $sth = &ORM::Db::prep( $sql, $self -> __get_dbh( @args,
+							    &__for_read() ) );
 	$sth -> execute();
 	my $rows = $sth -> rows();
 	
 	if( $args{ '_groupby' } )
 	{
 		$outcome = [];
-# TODO ?
+
 		while( my $data = $sth -> fetchrow_hashref() )
 		{
 			my $set = ORM::DataSet -> new();
@@ -459,7 +469,8 @@ sub __form_sql_func_sql
 	my @args = @_;
 	my %args = @args;
 
-	my @where_args = $self -> __form_where( @args );
+	my @where_args = $self -> __form_where( @args,
+						&__for_read() );
 
 	my @tables_to_select_from = ( $self -> _db_table() );
 
@@ -564,8 +575,12 @@ sub create
 	my $allok = undef;
 
 	# if( my @pk = $self -> __find_primary_keys() )
+
+	my $dbh = $self -> __get_dbh( @args,
+				      &__for_write() );
+
 	{
-		my $sth = &ORM::Db::prep( $sql, $self -> __get_dbh( @args ) );
+		my $sth = &ORM::Db::prep( $sql, $dbh );
 		my $rc = $sth -> execute();
 
 		if( $rc == 1 )
@@ -587,22 +602,13 @@ sub create
 		$sth -> finish();
 
 	}
- # else
- # 	{
- # 		my $rc = &ORM::Db::doit( $sql, $self -> __get_dbh( @args ) );
-
- # 		if( $rc == 1 )
- # 		{
- # 			$allok = 1;
- # 		}
- # 	}
 
 	if( $allok )
 	{
 		return $allok; #$self -> get( $self -> __leave_only_pk( %args ) );
 	}
 
-	assert( 0, sprintf( "%s: %s", $sql, &ORM::Db::errstr( $self -> __get_dbh( @args ) ) ) );
+	assert( 0, sprintf( "%s: %s", $sql, &ORM::Db::errstr( $dbh ) ) );
 }
 
 
@@ -656,7 +662,8 @@ sub create_many
 
 	my $fields = undef;
 	my @values_sets = ();
-	my $dbh = $self -> __get_dbh( %{ $extra_args_data } );
+	my $dbh = $self -> __get_dbh( %{ $extra_args_data },
+				      &__for_write() );
 
 	foreach my $nrd ( @{ $new_records_data } )
 	{
@@ -683,7 +690,7 @@ sub create_many
 	my @rv = ();
 
 	{
-		my $sth = &ORM::Db::prep( $sql, $self -> __get_dbh( %{ $extra_args_data } ) );
+		my $sth = &ORM::Db::prep( $sql, $dbh ); #$self -> __get_dbh( %{ $extra_args_data } ) );
 		my $rc = $sth -> execute();
 
 		if( $rc == scalar @{ $new_records_data } )
@@ -771,19 +778,20 @@ sub update
 			   $where );
 
 	my $rc = undef;
+	my $dbh = $self -> __get_dbh( &__for_write() );
 
 	if( $args{ '_debug' } )
 	{
 		return $sql;
 	} else
 	{
-		$rc = &ORM::Db::doit( $sql, $self -> __get_dbh() );
+		$rc = &ORM::Db::doit( $sql, $dbh );
 		
 		if( ref( $self ) )
 		{
 			if( $rc != 1 )
 			{
-				assert( 0, sprintf( "%s: %s", $sql, &ORM::Db::errstr( $self -> __get_dbh() ) ) );
+				assert( 0, sprintf( "%s: %s", $sql, &ORM::Db::errstr( $dbh ) ) );
 			}
 		}
 	}
@@ -837,7 +845,7 @@ ETxc0WxZs0boLUm1:
 		
 		push @upadte_pairs, sprintf( '%s=%s',
 					     &__get_db_field_name( $attr ),
-					     &ORM::Db::dbq( $value, $self -> __get_dbh() ) );
+					     &ORM::Db::dbq( $value, $self -> __get_dbh( &__for_write() ) ) );
 		
 	}
 	
@@ -881,7 +889,7 @@ sub __get_update_pairs_for_update_request_called_from_class
 
 				} else
 				{
-					$value = &ORM::Db::dbq( $value, $self -> __get_dbh() );
+					$value = &ORM::Db::dbq( $value, $self -> __get_dbh( &__for_write() ) );
 				}
 
 				push @upadte_pairs, sprintf( '%s=%s%s',
@@ -908,7 +916,8 @@ sub __form_update_request_where_part
 		assert( not ref( $self ) ); # only class call, not instance call
 		if( ref( $w ) eq 'ARRAY' )
 		{
-			@where = $self -> __form_where( @{ $w } );
+			@where = $self -> __form_where( @{ $w },
+							&__for_write() );
 		} else
 		{
 			push @where, $w;
@@ -925,7 +934,8 @@ sub __form_update_request_where_part
 			my $pkname = $pkattr -> name();
 			$where_args{ $pkname } = $self -> $pkname();
 		}
-		@where = $self -> __form_where( %where_args );
+		@where = $self -> __form_where( %where_args,
+						&__for_write() );
 	}
 
 	assert( my $where = join( ' AND ', @where ) );
@@ -975,7 +985,8 @@ sub delete
 		return $sql;
 	}
 
-	my $rc = &ORM::Db::doit( $sql, $self -> __get_dbh( @args ) );
+	my $rc = &ORM::Db::doit( $sql, $self -> __get_dbh( @args,
+							   &__for_write() ) );
 
 	return $rc;
 }
@@ -1119,7 +1130,7 @@ sub __lazy_build_value_actual
 		}
 		
 		$t = $foreign_key -> get( $foreign_key_attr_name => $t,
-					  _dbh => $self -> __get_dbh() );
+					  _dbh => $self -> __get_dbh( &__for_read() ) );
 	}
 	
 	return $t;
@@ -1145,7 +1156,8 @@ sub __correct_insert_args
 	my $self = shift;
 	my %args = @_;
 
-	my $dbh = $self -> __get_dbh( %args );
+	my $dbh = $self -> __get_dbh( %args,
+				      &__for_write() );
 
 	foreach my $attr ( $self -> meta() -> get_all_attributes() )
 	{
@@ -1211,7 +1223,8 @@ sub __form_insert_sql
 	my %args = @_;
 	my ( $fields, $values ) = $self -> __form_fields_and_values_for_insert_sql( %args );
 	
-	my $dbh = $self -> __get_dbh( %args );
+	my $dbh = $self -> __get_dbh( %args,
+				      &__for_write() );
 	my $sql = sprintf( "INSERT INTO %s (%s) VALUES (%s) RETURNING *",
 			   $self -> _db_table(),
 			   join( ',', @{ $fields } ),
@@ -1305,7 +1318,8 @@ sub __form_delete_sql
 		}
 	}
 
-	my @where_args = $self -> __form_where( %args );
+	my @where_args = $self -> __form_where( %args,
+						&__for_write() );
 
 	my $sql = sprintf( "DELETE FROM %s WHERE %s", $self -> _db_table(), join( ' AND ', @where_args ) );
 
@@ -1440,7 +1454,8 @@ sub __form_get_sql
 	my @args = @_;
 	my %args = @args;
 
-	my @where_args = $self -> __form_where( @args );
+	my @where_args = $self -> __form_where( @args,
+						&__for_read() );
 
 	my @fields_names = $self -> __collect_field_names( @args );
 

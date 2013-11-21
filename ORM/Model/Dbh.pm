@@ -10,7 +10,7 @@ sub set_read_dbh
 {
 	my ( $self, $dbh ) = @_;
 
-	# TODO handle arrays
+	# arrayref expected
 	$self -> meta() -> _littleorm_rdbh( $dbh );
 }
 
@@ -18,7 +18,7 @@ sub set_write_dbh
 {
 	my ( $self, $dbh ) = @_;
 
-	# TODO handle arrays
+	# arrayref expected
 	$self -> meta() -> _littleorm_wdbh( $dbh );
 }
 
@@ -31,13 +31,13 @@ sub set_dbh
 		my ( $rdbh, $wdbh ) = @{ $dbh }{ 'read', 'write' };
 		assert( $rdbh and $wdbh );
 
-		$self -> set_read_dbh( $rdbh );
-		$self -> set_write_dbh( $wdbh );
+		$self -> set_read_dbh( ref( $rdbh ) eq 'ARRAY' ? $rdbh : [ $rdbh ] );
+		$self -> set_write_dbh( ref( $wdbh ) eq 'ARRAY' ? $wdbh : [ $wdbh ]  );
 
 	} else
 	{
-		$self -> set_read_dbh( $dbh );
-		$self -> set_write_dbh( $dbh );
+		$self -> set_read_dbh( [ $dbh ] );
+		$self -> set_write_dbh( [ $dbh ] );
 	}
 }
 
@@ -48,25 +48,26 @@ sub __get_dbh
 	my $self = shift;
 
 	my %args = @_;
+	assert( my $for_what = $args{ '_for_what' } );
 
-	my $dbh = &ORM::Db::dbh_is_ok( $self -> __get_class_dbh() ); # here 1
+	my $dbh = &ORM::Db::dbh_is_ok( $self -> __get_class_dbh( $for_what ) );
 
 	unless( $dbh )
 	{
 		if( my $t = $args{ '_dbh' } )
 		{
 			$dbh = $t;
-			$self -> __set_class_dbh( $dbh );
+			$self -> __set_class_dbh( $dbh ); # TODO
 			ORM::Db -> __set_default_if_not_set( $dbh );
 		}
 	}
 
 	unless( $dbh )
 	{
-		if( my $t = &ORM::Db::get_dbh() )
+		if( my $t = &ORM::Db::get_dbh( $for_what ) )
 		{
 			$dbh = $t;
-			$self -> __set_class_dbh( $dbh );
+			$self -> __set_class_dbh( $dbh ); # TODO
 		}
 	}
 
@@ -78,18 +79,36 @@ sub __get_dbh
 sub __get_class_dbh
 {
 
-	my $self = shift;
+	my ( $self, $for_what ) = @_;
 
-	my $calling_package = ( ref( $self ) or $self );
+	my $rv = undef;
 
-	my $dbh = undef;
-
+	if( $for_what eq 'write' )
 	{
-		no strict "refs";
-		$dbh = ${ $calling_package . "::_dbh" };
+		if( my $t = $self -> meta() -> _littleorm_wdbh() )
+		{
+			$rv = &ORM::Db::__get_rand_array_el( $t );
+		}
+
+	} else
+	{
+		if( my $t = $self -> meta() -> _littleorm_rdbh() )
+		{
+			$rv = &ORM::Db::__get_rand_array_el( $t );
+		}
 	}
 
-	return $dbh;
+
+	# my $calling_package = ( ref( $self ) or $self );
+
+	# my $dbh = undef;
+
+	# {
+	# 	no strict "refs";
+	# 	$dbh = ${ $calling_package . "::_dbh" };
+	# }
+
+	return $rv;
 }
 
 sub __set_class_dbh
@@ -100,10 +119,14 @@ sub __set_class_dbh
 
 	my $dbh = shift;
 
-	{
-		no strict "refs";
-		${ $calling_package . "::_dbh" } = $dbh;
-	}
+	$self -> set_read_dbh( [ $dbh ] );
+	$self -> set_write_dbh( [ $dbh ] );
+
+
+	# {
+	# 	no strict "refs";
+	# 	${ $calling_package . "::_dbh" } = $dbh;
+	# }
 
 }
 

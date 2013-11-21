@@ -32,7 +32,9 @@ sub sql
 {
 	my $self = shift;
 
-	my @rv = $self -> gen_clauses( @_ );
+	my @rv = $self -> gen_clauses( &ORM::Model::__for_read(), # default, can be overwritten with following in @_
+				       @_ );
+
 	return sprintf( ' ( %s ) ', join( ' '. $self -> logic() . ' ', @rv ) );
 }
 

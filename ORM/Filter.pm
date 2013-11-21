@@ -842,35 +842,40 @@ sub get_many
 {
 	my $self = shift;
 
-	return $self -> call_orm_method( 'get_many', @_ );
+	return $self -> call_orm_method( 'get_many', @_,
+					 &ORM::Model::__for_read() );
 }
 
 sub get
 {
 	my $self = shift;
 
-	return $self -> call_orm_method( 'get', @_ );
+	return $self -> call_orm_method( 'get', @_,
+					 &ORM::Model::__for_read() );
 }
 
 sub count
 {
 	my $self = shift;
 
-	return $self -> call_orm_method( 'count', @_ );
+	return $self -> call_orm_method( 'count', @_,
+					 &ORM::Model::__for_read() );
 }
 
 sub max
 {
 	my $self = shift;
 
-	return $self -> call_orm_method( 'max', @_ );
+	return $self -> call_orm_method( 'max', @_,
+					 &ORM::Model::__for_read() );
 }
 
 sub min
 {
 	my $self = shift;
 
-	return $self -> call_orm_method( 'min', @_ );
+	return $self -> call_orm_method( 'min', @_,
+					 &ORM::Model::__for_read() );
 }
 
 sub delete

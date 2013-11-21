@@ -19,6 +19,7 @@ sub update
 	map { assert( $_ -> model() eq $self -> model() ); } @{ $self -> clauses() };
 
 	return $self -> call_orm_method( 'update',
+					 &ORM::Model::__for_write(),
 					 @_,
 					 _include_table_alias_into_sql => 0 );
 	
