@@ -22,6 +22,9 @@ my @recs = Models::Author -> create_many( @to_create );
 
 is( scalar @recs, scalar @to_create, 'all recs created' );
 
+
+map { $_ -> reload() } @recs;
+
 ok( 1, "didnt crash" );
 
 $dbh -> disconnect();

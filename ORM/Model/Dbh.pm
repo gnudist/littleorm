@@ -1,6 +1,6 @@
 use strict;
 
-# DBH-related routines
+# DBH-related routines which were inside ORM/Model.pm earlier
 
 package ORM::Model;
 
@@ -46,9 +46,9 @@ sub set_dbh
 sub __get_dbh
 {
 	my $self = shift;
-
 	my %args = @_;
-	assert( my $for_what = $args{ '_for_what' } );
+
+	assert( my $for_what = $args{ '_for_what' } ); # i must know what this DBH you need for
 
 	my $dbh = &ORM::Db::dbh_is_ok( $self -> __get_class_dbh( $for_what ) );
 
@@ -57,8 +57,7 @@ sub __get_dbh
 		if( my $t = $args{ '_dbh' } )
 		{
 			$dbh = $t;
-			$self -> __set_class_dbh( $dbh ); # TODO
-			ORM::Db -> __set_default_if_not_set( $dbh );
+			$self -> __set_class_dbh( $dbh, $for_what );
 		}
 	}
 
@@ -67,7 +66,7 @@ sub __get_dbh
 		if( my $t = &ORM::Db::get_dbh( $for_what ) )
 		{
 			$dbh = $t;
-			$self -> __set_class_dbh( $dbh ); # TODO
+			$self -> __set_class_dbh( $dbh, $for_what );
 		}
 	}
 
@@ -89,7 +88,6 @@ sub __get_class_dbh
 		{
 			$rv = &ORM::Db::__get_rand_array_el( $t );
 		}
-
 	} else
 	{
 		if( my $t = $self -> meta() -> _littleorm_rdbh() )
@@ -98,9 +96,7 @@ sub __get_class_dbh
 		}
 	}
 
-
 	# my $calling_package = ( ref( $self ) or $self );
-
 	# my $dbh = undef;
 
 	# {
@@ -113,16 +109,29 @@ sub __get_class_dbh
 
 sub __set_class_dbh
 {
-	my $self = shift;
+	my ( $self, $dbh, $for_what ) = @_;
 
-	my $calling_package = ( ref( $self ) or $self );
+	if( $for_what )
+	{
+		if( $for_what eq 'read' )
+		{
+			$self -> set_read_dbh( [ $dbh ] );
+		} elsif( $for_what eq 'write' )
+		{
+			$self -> set_write_dbh( [ $dbh ] );
+		} else
+		{
+			assert( 0, 'for what? ' . $for_what );
+		}
+	} else
+	{
+		$self -> set_read_dbh( [ $dbh ] );
+		$self -> set_write_dbh( [ $dbh ] );
+	}
 
-	my $dbh = shift;
+	# ancient DBH storing technique:
 
-	$self -> set_read_dbh( [ $dbh ] );
-	$self -> set_write_dbh( [ $dbh ] );
-
-
+	# my $calling_package = ( ref( $self ) or $self );
 	# {
 	# 	no strict "refs";
 	# 	${ $calling_package . "::_dbh" } = $dbh;
