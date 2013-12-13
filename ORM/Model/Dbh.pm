@@ -50,30 +50,72 @@ sub __get_dbh
 
 	assert( my $for_what = $args{ '_for_what' } ); # i must know what this DBH you need for
 
-	my $dbh = &ORM::Db::dbh_is_ok( $self -> __get_class_dbh( $for_what ) );
+	my $dbh = ( $args{ '_dbh' }
+		    or
+		    $self -> __get_class_dbh( $for_what ) 
+		    or
+		    &ORM::Db::get_dbh( $for_what ) );
 
-	unless( $dbh )
-	{
-		if( my $t = $args{ '_dbh' } )
-		{
-			$dbh = $t;
-			$self -> __set_class_dbh( $dbh, $for_what );
-		}
-	}
+	# my $dbh = &ORM::Db::dbh_is_ok( $self -> __get_class_dbh( $for_what ) );
 
-	unless( $dbh )
-	{
-		if( my $t = &ORM::Db::get_dbh( $for_what ) )
-		{
-			$dbh = $t;
-			$self -> __set_class_dbh( $dbh, $for_what );
-		}
-	}
+	# unless( $dbh )
+	# {
+	# 	if( my $t = $args{ '_dbh' } )
+	# 	{
+	# 		$dbh = $t;
+	# 		$self -> __set_class_dbh( $dbh, $for_what );
+	# 	}
+	# }
+
+	# unless( $dbh )
+	# {
+	# 	if( my $t = &ORM::Db::get_dbh( $for_what ) )
+	# 	{
+	# 		$dbh = $t;
+	# 		$self -> __set_class_dbh( $dbh, $for_what );
+	# 	}
+	# }
 
 	assert( &ORM::Db::dbh_is_ok( $dbh ), 'this method is supposed to return valid dbh' );
 
 	return $dbh;
 }
+
+
+
+# full old version saved for reference
+# sub __get_dbh
+# {
+# 	my $self = shift;
+# 	my %args = @_;
+
+# 	assert( my $for_what = $args{ '_for_what' } ); # i must know what this DBH you need for
+
+# 	my $dbh = &ORM::Db::dbh_is_ok( $self -> __get_class_dbh( $for_what ) );
+
+# 	unless( $dbh )
+# 	{
+# 		if( my $t = $args{ '_dbh' } )
+# 		{
+# 			$dbh = $t;
+# 			$self -> __set_class_dbh( $dbh, $for_what );
+# 		}
+# 	}
+
+# 	unless( $dbh )
+# 	{
+# 		if( my $t = &ORM::Db::get_dbh( $for_what ) )
+# 		{
+# 			$dbh = $t;
+# 			$self -> __set_class_dbh( $dbh, $for_what );
+# 		}
+# 	}
+
+# 	assert( &ORM::Db::dbh_is_ok( $dbh ), 'this method is supposed to return valid dbh' );
+
+# 	return $dbh;
+# }
+
 
 sub __get_class_dbh
 {
