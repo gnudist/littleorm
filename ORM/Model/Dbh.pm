@@ -48,6 +48,12 @@ sub __get_dbh
 	my $self = shift;
 	my %args = @_;
 
+	unless( exists $args{ '_for_what' } )
+	{
+		warn( "'_for_what' not specified, failing back to write DBH" );
+		$args{ '_for_what' } = 'write';
+	}
+
 	assert( my $for_what = $args{ '_for_what' } ); # i must know what this DBH you need for
 
 	my $dbh = ( $args{ '_dbh' }
