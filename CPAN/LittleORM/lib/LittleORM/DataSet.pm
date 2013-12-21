@@ -81,7 +81,16 @@ OnR4gMKVoLEq1YDH:
 				{
 				# say no more!
 					$found = 1;
-					$rv = $m -> __lazy_build_value_actual( $attr, $f -> { 'value' } );
+
+					if( $f -> { 'orm_coerce' } )
+					{
+						$rv = $m -> __lazy_build_value_actual( $attr, $f -> { 'value' } );
+					} else
+					{
+						$rv = $f -> { 'value' };
+					}
+
+
 					last OnR4gMKVoLEq1YDH;
 				}
 			}
@@ -97,6 +106,7 @@ iaBPEvHDdSBDBo1O:
 			{
 				$found = 1;
 				$rv = $f -> { 'value' };
+				
 				last iaBPEvHDdSBDBo1O;
 			}
 		}

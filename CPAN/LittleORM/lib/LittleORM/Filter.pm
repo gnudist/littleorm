@@ -125,6 +125,7 @@ has 'joined_tables' => ( is => 'rw', isa => 'ArrayRef[HashRef]', default => sub 
 
 use Carp::Assert 'assert';
 use List::MoreUtils 'uniq';
+use LittleORM::Filter::Update ();
 
 {
 	my $counter = 0;
@@ -152,7 +153,7 @@ sub push_anything_appropriate
 	my $self = shift;
 	my @args = @_;
 
-	my @clauseargs = ( _where => '1=1' );
+	my @clauseargs = ();
 	assert( my $class = $self -> model(), 'must know my model' );
 
 	@args = @{ $self -> model() -> _disambiguate_filter_args( \@args ) };
@@ -190,7 +191,9 @@ sub push_anything_appropriate
 
 		} elsif( $arg eq '_not_exists' )
 		{
-			assert( $val and $val -> isa( 'LittleORM::Filter' ) );
+			assert( $val and ( ( ref( $val ) eq 'HASH' )
+					   or
+					   $val -> isa( 'LittleORM::Filter' ) ) );
 			$self -> connect_filter_exists( 'NOT EXISTS', $val );
 
 		} elsif( blessed( $val ) and $val -> isa( 'LittleORM::Filter' ) )
@@ -209,6 +212,10 @@ sub push_anything_appropriate
 	}
 
 	{
+		unless( @clauseargs )
+		{
+			@clauseargs = ( _where => '1=1' );
+		}
 		my $clause = LittleORM::Clause -> new( model => $class,
 						 cond => \@clauseargs,
 						 table_alias => $self -> table_alias() );
@@ -443,13 +450,15 @@ sub connect_filter_complex
 		my ( $rest_args, $connecting_args ) = $self -> _look_for_connecting_args_in_args_and_do_it_in_a_compatible_way( @_ );
 		@_ = @{ $rest_args };
 
-		my ( $arg, $filter ) = $self -> _sanitize_args_for_connecting( ArgAndFilter => \@_ );
+		my $connecting_clause = $self -> _get_connecting_clause_from_connecting_args( $connecting_args );
+		my ( $arg, $filter ) = $self -> _sanitize_args_for_connecting( ArgAndFilter => \@_,
+									       ConnectingClause => $connecting_clause );
 		
 		map { $self -> push_clause( $_, $filter -> table_alias() ) } @{ $filter -> clauses() };
 
 		my $conn_sql = undef;
 		
-		if( my $connecting_clause = $self -> _get_connecting_clause_from_connecting_args( $connecting_args ) )
+		if( $connecting_clause )
 		{
 			$conn_sql = $connecting_clause -> sql();
 		} else
@@ -663,12 +672,30 @@ sub translate_into_sql_clauses
 	for( my $i = 0; $i < $clauses_number; $i ++ )
 	{
 		my $clause = $self -> clauses() -> [ $i ];
-
-		push @all_clauses_together, $clause -> sql( @args );
-
+		my $sql = $clause -> sql( $self -> _grep_out_non_system( @args ) );
+		push @all_clauses_together, $sql;
 	}
 
 	return @all_clauses_together;
+}
+
+sub _grep_out_non_system
+{
+	my $self = shift;
+
+	my @args = @_;
+	my @rv = ();
+
+	while( my $arg = shift @args )
+	{
+		my $val = shift @args;
+		if( $arg =~ /^_/ )
+		{
+			push @rv, ( $arg, $val );
+		}
+	}
+
+	return @rv;
 }
 
 sub _table_spec_with_join_support
@@ -815,35 +842,40 @@ sub get_many
 {
 	my $self = shift;
 
-	return $self -> call_orm_method( 'get_many', @_ );
+	return $self -> call_orm_method( 'get_many', @_,
+					 &LittleORM::Model::__for_read() );
 }
 
 sub get
 {
 	my $self = shift;
 
-	return $self -> call_orm_method( 'get', @_ );
+	return $self -> call_orm_method( 'get', @_,
+					 &LittleORM::Model::__for_read() );
 }
 
 sub count
 {
 	my $self = shift;
 
-	return $self -> call_orm_method( 'count', @_ );
+	return $self -> call_orm_method( 'count', @_,
+					 &LittleORM::Model::__for_read() );
 }
 
 sub max
 {
 	my $self = shift;
 
-	return $self -> call_orm_method( 'max', @_ );
+	return $self -> call_orm_method( 'max', @_,
+					 &LittleORM::Model::__for_read() );
 }
 
 sub min
 {
 	my $self = shift;
 
-	return $self -> call_orm_method( 'min', @_ );
+	return $self -> call_orm_method( 'min', @_,
+					 &LittleORM::Model::__for_read() );
 }
 
 sub delete

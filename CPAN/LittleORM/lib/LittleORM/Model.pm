@@ -1,9 +1,10 @@
-use LittleORM::Db;
-use LittleORM::Db::Field;
+use LittleORM::Db ();
+use LittleORM::Db::Field ();
+use LittleORM::Meta::LittleORMHasDbh ();
 
 package LittleORM::Model;
 
-use Moose;
+use Moose -traits => 'LittleORMHasDbh';
 use Moose::Util::TypeConstraints;
 
 has '_rec' => ( is => 'rw', isa => 'HashRef', required => 1, metaclass => 'LittleORM::Meta::Attribute', description => { ignore => 1 } );
@@ -12,6 +13,8 @@ use Carp::Assert 'assert';
 use Scalar::Util 'blessed';
 use Module::Load ();
 use LittleORM::Model::Field ();
+use LittleORM::Model::Value ();
+use LittleORM::Model::Dbh ();
 
 sub _db_table{ assert( 0, '" _db_table " method must be redefined.' ) }
 
@@ -58,11 +61,20 @@ sub _clear
 	return 1;
 }
 
+sub __for_read
+{
+	return ( _for_what => 'read' );
+}
+
+sub __for_write
+{
+	return ( _for_what => 'write' );
+}
+
 sub reload
 {
 	my $self = shift;
 
-	
 	if( my @pk = $self -> __find_primary_keys() )
 	{
 		my %get_args = ();
@@ -78,8 +90,7 @@ sub reload
 		my $sql = $self -> __form_get_sql( %get_args,
 						   _limit => 1 );
 
-		my $rec = &LittleORM::Db::getrow( $sql, $self -> __get_dbh() );
-
+		my $rec = &LittleORM::Db::getrow( $sql, $self -> __get_dbh( &__for_read() ) );
 		$self -> _rec( $rec );
 
 	} else
@@ -97,7 +108,6 @@ sub clone
 	return $class -> new( _rec => $self -> _rec() );
 }
 
-
 sub get
 {
 	my $self = shift;
@@ -112,7 +122,8 @@ sub get
 		return $sql;
 	}
 
-	my $rec = &LittleORM::Db::getrow( $sql, $self -> __get_dbh( @args ) );
+	my $rec = &LittleORM::Db::getrow( $sql, $self -> __get_dbh( @args,
+							      &__for_read() ) );
 
 	my $rv = undef;
 
@@ -132,9 +143,13 @@ sub borrow_field
 
 	if( $attrname )
 	{
-		unless( exists $more{ 'type_preserve' } )
+		unless( exists $more{ 'db_field_type' } )
 		{
-			$more{ 'type_preserve' } = 1;
+			my $attr = $self -> meta() -> find_attribute_by_name( $attrname );
+			if( my $t = &__descr_attr( $attr, 'db_field_type' ) )
+			{
+				$more{ 'db_field_type' } = $t;
+			}
 		}
 	}
 
@@ -169,7 +184,6 @@ sub create_one_return_value_item
 				{
 					unless( LittleORM::Model::Field -> this_is_field( $f ) )
 					{
-
 						$f = $self -> borrow_field( $f,
 									    select_as => &__get_db_field_name( $self -> meta() -> find_attribute_by_name( $f ) ) );
 					}
@@ -179,6 +193,7 @@ sub create_one_return_value_item
 
 					$rv -> add_to_set( { model => $f -> model(),
 							     base_attr => $f -> base_attr(),
+							     orm_coerce => $f -> orm_coerce(),
 							     dbfield => $dbfield,
 							     value => $value } );
 				}
@@ -188,7 +203,15 @@ sub create_one_return_value_item
 			{
 				foreach my $f ( @{ $grpby } )
 				{
-					my ( $dbfield, $post_process, $base_attr, $model ) = ( undef, undef, undef, ( ref( $self ) or $self ) );
+					my ( $dbfield,
+					     $post_process,
+					     $base_attr,
+					     $orm_coerce,
+					     $model ) = ( undef,
+							  undef,
+							  undef,
+							  1,
+							  ( ref( $self ) or $self ) );
 
 					if( LittleORM::Model::Field -> this_is_field( $f ) )
 					{
@@ -196,6 +219,8 @@ sub create_one_return_value_item
 						$base_attr = $f -> base_attr();
 						$post_process = $f -> post_process();
 						$model = $f -> model();
+						$orm_coerce = $f -> orm_coerce();
+
 					} else
 					{
 						$dbfield = &__get_db_field_name( $self -> meta() -> find_attribute_by_name( $f ) );
@@ -205,6 +230,7 @@ sub create_one_return_value_item
 					$rv -> add_to_set( { model => $model,
 							     base_attr => $base_attr,
 							     dbfield => $dbfield,
+							     orm_coerce => $orm_coerce,
 							     value => $value } );
 				}
 			}
@@ -263,7 +289,8 @@ sub get_many
 		return $sql;
 	}
 
-	my $sth = &LittleORM::Db::prep( $sql, $self -> __get_dbh( @args ) );
+	my $sth = &LittleORM::Db::prep( $sql, $self -> __get_dbh( @args,
+							    &__for_read() ) );
 	$sth -> execute();
 
 	while( my $data = $sth -> fetchrow_hashref() )
@@ -296,14 +323,15 @@ sub _sql_func_on_attr
 		return $sql;
 	}
 
-	my $sth = &LittleORM::Db::prep( $sql, $self -> __get_dbh( @args ) );
+	my $sth = &LittleORM::Db::prep( $sql, $self -> __get_dbh( @args,
+							    &__for_read() ) );
 	$sth -> execute();
 	my $rows = $sth -> rows();
 	
 	if( $args{ '_groupby' } )
 	{
 		$outcome = [];
-# TODO ?
+
 		while( my $data = $sth -> fetchrow_hashref() )
 		{
 			my $set = LittleORM::DataSet -> new();
@@ -311,6 +339,7 @@ sub _sql_func_on_attr
 			{
 				my $field = { model => ( ref( $self ) or $self ),
 					      dbfield => $k,
+					      orm_coerce => 1,
 					      value => $v };
 
 				$set -> add_to_set( $field );
@@ -440,7 +469,8 @@ sub __form_sql_func_sql
 	my @args = @_;
 	my %args = @args;
 
-	my @where_args = $self -> __form_where( @args );
+	my @where_args = $self -> __form_where( @args,
+						&__for_read() );
 
 	my @tables_to_select_from = ( $self -> _db_table() );
 
@@ -542,47 +572,168 @@ sub create
 		return $sql;
 	}
 
-	my $allok = 0;
+	my $allok = undef;
 
-	if( my @pk = $self -> __find_primary_keys() )
+	# if( my @pk = $self -> __find_primary_keys() )
+
+	my $dbh = $self -> __get_dbh( @args,
+				      &__for_write() );
+
 	{
-		my $sth = &LittleORM::Db::prep( $sql, $self -> __get_dbh( @args ) );
+		my $sth = &LittleORM::Db::prep( $sql, $dbh );
 		my $rc = $sth -> execute();
 
 		if( $rc == 1 )
 		{
-			$allok = 1;
+			# $allok = 1;
+			my $data = $sth -> fetchrow_hashref();
+			$allok = $self -> create_one_return_value_item( $data, @args );
 
-			foreach my $pk ( @pk )
-			{
-				unless( $args{ $pk -> name() } )
-				{
-					my $field = &__get_db_field_name( $pk );
-					my $data = $sth -> fetchrow_hashref();
-					%args = ();
-					$args{ $pk -> name() } = $data -> { $field };
-				}
-			}
+			# foreach my $pk ( @pk )
+			# {
+			# 	unless( $args{ $pk -> name() } )
+			# 	{
+			# 		my $field = &__get_db_field_name( $pk );
+			# 		$args{ $pk -> name() } = $data -> { $field };
+			# 	}
+			# }
 		}
 
 		$sth -> finish();
 
-	} else
-	{
-		my $rc = &LittleORM::Db::doit( $sql, $self -> __get_dbh( @args ) );
-
-		if( $rc == 1 )
-		{
-			$allok = 1;
-		}
 	}
 
 	if( $allok )
 	{
-		return $self -> get( %args );
+		return $allok; #$self -> get( $self -> __leave_only_pk( %args ) );
 	}
 
-	assert( 0, sprintf( "%s: %s", $sql, &LittleORM::Db::errstr( $self -> __get_dbh( @args ) ) ) );
+	assert( 0, sprintf( "%s: %s", $sql, &LittleORM::Db::errstr( $dbh ) ) );
+}
+
+
+
+
+
+sub _process_create_many_args
+{
+	my $self = shift;
+
+	my @args = @_;
+
+
+
+	my $new_records_data = ();
+	my $extra_args_data = {};
+
+	my $index_of_first_args_el_which_is_not_ref = ${ [ grep { not ref( $args[ $_ ] ) } ( 0 .. $#args ) ] }[ 0 ];
+
+	if( $index_of_first_args_el_which_is_not_ref )
+	{
+
+		@{ $new_records_data } = @args[ 0 .. $index_of_first_args_el_which_is_not_ref - 1 ];
+		%{ $extra_args_data } = @args[ $index_of_first_args_el_which_is_not_ref .. $#args ];
+	} else
+	{
+		$new_records_data = \@args;
+	}
+
+	return ( $new_records_data,
+		 $extra_args_data );
+
+}
+
+sub create_many
+{
+	my $self = shift;
+
+	my ( $new_records_data,
+	     $extra_args_data ) = $self -> _process_create_many_args( @_ );
+
+	{
+		assert( my $cnt = scalar @{ $new_records_data } );
+
+		for( my $i = 0; $i < $cnt; $i ++ )
+		{
+			my %args = $self -> __correct_insert_args( @{ $new_records_data -> [ $i ] } );
+			$new_records_data -> [ $i ] = \%args;
+		}
+	}
+
+	my $fields = undef;
+	my @values_sets = ();
+	my $dbh = $self -> __get_dbh( %{ $extra_args_data },
+				      &__for_write() );
+
+	foreach my $nrd ( @{ $new_records_data } )
+	{
+		my ( $f, $v ) = $self -> __form_fields_and_values_for_insert_sql( %{ $nrd } );
+		assert( $f and $v );
+		unless( defined $fields )
+		{
+			$fields = $f;
+		}
+		push @values_sets, join( ',', map { &LittleORM::Db::dbq( $_, $dbh ) } @{ $v } );
+	}
+
+	my $sql = sprintf( "INSERT INTO %s (%s) VALUES %s RETURNING *",
+			   $self -> _db_table(),
+			   join( ',', @{ $fields } ),
+			   join( ',', map { '(' . $_ . ')' } @values_sets ) );
+			   
+
+	if( $extra_args_data -> { '_debug' } )
+	{
+		return $sql;
+	}
+
+	my @rv = ();
+
+	{
+		my $sth = &LittleORM::Db::prep( $sql, $dbh ); #$self -> __get_dbh( %{ $extra_args_data } ) );
+		my $rc = $sth -> execute();
+
+		if( $rc == scalar @{ $new_records_data } )
+		{
+			while( my $data = $sth -> fetchrow_hashref() )
+			{
+				my $o = $self -> create_one_return_value_item( $data, %{ $extra_args_data } );
+				push @rv, $o;
+			}
+
+		} else
+		{
+			assert( 0, 'insert error' );
+		}
+		
+		$sth -> finish();
+	}
+
+	return @rv;
+}
+
+sub __leave_only_pk
+{
+	my $self = shift;
+
+	my %args = @_;
+	my %rv = ();
+
+	foreach my $attr ( $self -> __find_primary_keys() )
+	{
+		my $aname = $attr -> name();
+		if( exists $args{ $aname } )
+		{
+			$rv{ $aname } = $args{ $aname };
+		}
+	}
+	
+	unless( %rv )
+	{
+		%rv = %args;
+	}
+
+	return %rv;
 }
 
 sub __find_attr_by_its_db_field_name
@@ -607,12 +758,73 @@ pgmxcobWi7lULIJW:
 sub update
 {
 	my $self = shift;
-	my $debug = shift;
+
+	my %args = ();
+
+	if( scalar @_ == 1 )
+	{
+		$args{ '_debug' } = $_[ 0 ];
+	} else
+	{
+		%args = @_;
+	}
 	
-	assert( my @pkattr = $self -> __find_primary_keys(), 'cant update without primary key' );
+	my @upadte_pairs = $self -> __get_update_pairs_for_update_request( %args );
+
+	my $where = $self -> __form_update_request_where_part( %args );
+	my $sql = sprintf( 'UPDATE %s SET %s WHERE %s',
+			   $self -> _db_table(),
+			   join( ',', @upadte_pairs ),
+			   $where );
+
+	my $rc = undef;
+	my $dbh = $self -> __get_dbh( &__for_write() );
+
+	if( $args{ '_debug' } )
+	{
+		return $sql;
+	} else
+	{
+		$rc = &LittleORM::Db::doit( $sql, $dbh );
+		
+		if( ref( $self ) )
+		{
+			if( $rc != 1 )
+			{
+				assert( 0, sprintf( "%s: %s", $sql, &LittleORM::Db::errstr( $dbh ) ) );
+			}
+		}
+	}
+	return $rc;
+}
+
+
+sub __get_update_pairs_for_update_request
+{
+	my $self = shift;
+	my %args = @_;
 
 	my @upadte_pairs = ();
 
+
+	if( ref( $self ) )
+	{
+		@upadte_pairs = $self -> __get_update_pairs_for_update_request_called_from_instance( %args );
+	} else
+	{
+		@upadte_pairs = $self -> __get_update_pairs_for_update_request_called_from_class( %args );
+	}
+
+	return @upadte_pairs;
+
+}
+
+sub __get_update_pairs_for_update_request_called_from_instance
+{
+	my $self = shift;
+	my %args = @_;
+
+	my @upadte_pairs = ();
 
 ETxc0WxZs0boLUm1:
 	foreach my $attr ( $self -> meta() -> get_all_attributes() )
@@ -621,48 +833,114 @@ ETxc0WxZs0boLUm1:
 		{
 			next ETxc0WxZs0boLUm1;
 		}
-
+		
 		my $aname = $attr -> name();
-
+		
+		if( exists $args{ $aname } )
+		{
+			$self -> $aname( $args{ $aname } );
+		}
+		
 		my $value = &__prep_value_for_db( $attr, $self -> $aname() );
-		push @upadte_pairs, sprintf( '%s=%s', &__get_db_field_name( $attr ), &LittleORM::Db::dbq( $value, $self -> __get_dbh() ) );
-
+		
+		push @upadte_pairs, sprintf( '%s=%s',
+					     &__get_db_field_name( $attr ),
+					     &LittleORM::Db::dbq( $value, $self -> __get_dbh( &__for_write() ) ) );
+		
 	}
+	
+	return @upadte_pairs;
 
-	my $where = '1=2';
+}
 
+sub __get_update_pairs_for_update_request_called_from_class
+{
+	my $self = shift;
+	my %args = @_;
+
+	my @upadte_pairs = ();
+
+	while( my ( $k, $v ) = each %args )
 	{
+		unless( $k =~ /^_/ ) # only system props and no real class attrs should start with underscore
+		{
+			assert( my $attr = $self -> meta() -> find_attribute_by_name( $k ) );
+
+			if( $self -> __should_ignore_on_write( $attr ) )
+			{
+				assert( 0, 'attr which should be ignored passed into update:' . $k );
+			} else
+			{
+				my $value = &__prep_value_for_db( $attr, $v );
+				my $typecast = '';
+
+				if( LittleORM::Model::Field -> this_is_field( $value ) )
+				{
+					if( ( my $t1 = &__descr_attr( $attr, 'db_field_type' ) )
+					    and
+					    ( my $t2 = $value -> db_field_type() ) )
+					{
+						unless( $t1 eq $t2 )
+						{
+							$typecast = '::' . $t1;
+						}
+					}
+					$value = $value -> form_field_name_for_db_select();
+
+				} else
+				{
+					$value = &LittleORM::Db::dbq( $value, $self -> __get_dbh( &__for_write() ) );
+				}
+
+				push @upadte_pairs, sprintf( '%s=%s%s',
+							     &__get_db_field_name( $attr ),
+							     $value,
+							     $typecast );
+			}
+
+		}
+	}
+	
+	return @upadte_pairs;
+}
+
+sub __form_update_request_where_part
+{
+	my $self = shift;
+	my %args = @_;
+
+	my @where = ();
+
+	if( my $w = $args{ '_where' } )
+	{
+		assert( not ref( $self ) ); # only class call, not instance call
+		if( ref( $w ) eq 'ARRAY' )
+		{
+			@where = $self -> __form_where( @{ $w },
+							&__for_write() );
+		} else
+		{
+			push @where, $w;
+		}
+
+	} else
+	{
+		assert( my @pkattr = $self -> __find_primary_keys(), 'cant update without primary key' );
+
 		my %where_args = ();
 
 		foreach my $pkattr ( @pkattr )
 		{
 			my $pkname = $pkattr -> name();
-
 			$where_args{ $pkname } = $self -> $pkname();
 		}
-		my @where = $self -> __form_where( %where_args );
-
-		assert( $where = join( ' AND ', @where ) );
+		@where = $self -> __form_where( %where_args,
+						&__for_write() );
 	}
 
-	my $sql = sprintf( 'UPDATE %s SET %s WHERE %s',
-			   $self -> _db_table(),
-			   join( ',', @upadte_pairs ),
-			   $where );
+	assert( my $where = join( ' AND ', @where ) );
 
-
-	if( $debug )
-	{
-		return $sql;
-	} else
-	{
-		my $rc = &LittleORM::Db::doit( $sql, $self -> __get_dbh() );
-		
-		unless( $rc == 1 )
-		{
-			assert( 0, sprintf( "%s: %s", $sql, &LittleORM::Db::errstr( $self -> __get_dbh() ) ) );
-		}
-	}
+	return $where;
 }
 
 sub copy
@@ -707,7 +985,8 @@ sub delete
 		return $sql;
 	}
 
-	my $rc = &LittleORM::Db::doit( $sql, $self -> __get_dbh( @args ) );
+	my $rc = &LittleORM::Db::doit( $sql, $self -> __get_dbh( @args,
+							   &__for_write() ) );
 
 	return $rc;
 }
@@ -851,7 +1130,7 @@ sub __lazy_build_value_actual
 		}
 		
 		$t = $foreign_key -> get( $foreign_key_attr_name => $t,
-					  _dbh => $self -> __get_dbh() );
+					  _dbh => $self -> __get_dbh( &__for_read() ) );
 	}
 	
 	return $t;
@@ -877,7 +1156,8 @@ sub __correct_insert_args
 	my $self = shift;
 	my %args = @_;
 
-	my $dbh = $self -> __get_dbh( %args );
+	my $dbh = $self -> __get_dbh( %args,
+				      &__for_write() );
 
 	foreach my $attr ( $self -> meta() -> get_all_attributes() )
 	{
@@ -896,16 +1176,14 @@ sub __correct_insert_args
 	return %args;
 }
 
-sub __form_insert_sql
+
+sub __form_fields_and_values_for_insert_sql
 {
 	my $self = shift;
-
 	my %args = @_;
 
 	my @fields = ();
 	my @values = ();
-
-	my $dbh = $self -> __get_dbh( %args );
 
 XmXRGqnrCTqWH52Z:
 	while( my ( $arg, $val ) = each %args )
@@ -932,15 +1210,30 @@ XmXRGqnrCTqWH52Z:
 		push @values, $val;
 	}
 
-	my $sql = sprintf( "INSERT INTO %s (%s) VALUES (%s)",
-			   $self -> _db_table(),
-			   join( ',', @fields ),
-			   join( ',', map { &LittleORM::Db::dbq( $_, $dbh ) } @values ) );
+	return ( \@fields, \@values );
 
-	if( my @pk = $self -> __find_primary_keys() )
-	{
-		$sql .= " RETURNING " . join( ',', map { &__get_db_field_name( $_ ) } @pk );
-	}
+}
+
+
+
+sub __form_insert_sql
+{
+	my $self = shift;
+
+	my %args = @_;
+	my ( $fields, $values ) = $self -> __form_fields_and_values_for_insert_sql( %args );
+	
+	my $dbh = $self -> __get_dbh( %args,
+				      &__for_write() );
+	my $sql = sprintf( "INSERT INTO %s (%s) VALUES (%s) RETURNING *",
+			   $self -> _db_table(),
+			   join( ',', @{ $fields } ),
+			   join( ',', map { &LittleORM::Db::dbq( $_, $dbh ) } @{ $values } ) );
+
+	# if( my @pk = $self -> __find_primary_keys() )
+	# {
+	# 	$sql .= " RETURNING " . join( ',', map { &__get_db_field_name( $_ ) } @pk );
+	# }
 
 	return $sql;
 }
@@ -950,7 +1243,18 @@ sub __prep_value_for_db
 	my ( $attr, $value ) = @_;
 
 	my $isa = $attr -> { 'isa' };
+	my $perform_coercion = 1;
 
+	if( LittleORM::Model::Value -> this_is_value( $value ) )
+	{
+		unless( $value -> orm_coerce() )
+		{
+			$perform_coercion = 0;
+		}
+		$value = $value -> value(); # %)
+	}
+
+	if( $perform_coercion )
 	{
 		my $ftc = find_type_constraint( $isa );
 
@@ -962,10 +1266,11 @@ sub __prep_value_for_db
 
 	my $rv = $value;
 
-
 	unless( LittleORM::Model::Field -> this_is_field( $value ) )
 	{
-		if( my $coerce_to = &__descr_attr( $attr, 'coerce_to' ) )
+		if( $perform_coercion
+		    and 
+		    ( my $coerce_to = &__descr_attr( $attr, 'coerce_to' ) ) )
 		{
 			$rv = $coerce_to -> ( $value );
 		}
@@ -979,7 +1284,6 @@ sub __prep_value_for_db
 				my $his_pk = $value -> __find_primary_key();
 				$foreign_key_attr_name = $his_pk -> name();
 			}
-			
 			$rv = $value -> $foreign_key_attr_name();
 		}
 	}
@@ -1014,7 +1318,8 @@ sub __form_delete_sql
 		}
 	}
 
-	my @where_args = $self -> __form_where( %args );
+	my @where_args = $self -> __form_where( %args,
+						&__for_write() );
 
 	my $sql = sprintf( "DELETE FROM %s WHERE %s", $self -> _db_table(), join( ' AND ', @where_args ) );
 
@@ -1149,7 +1454,8 @@ sub __form_get_sql
 	my @args = @_;
 	my %args = @args;
 
-	my @where_args = $self -> __form_where( @args );
+	my @where_args = $self -> __form_where( @args,
+						&__for_read() );
 
 	my @fields_names = $self -> __collect_field_names( @args );
 
@@ -1211,6 +1517,7 @@ sub __form_additional_sql
 			while( my ( $k, $sort_order ) = each %{ $t } )
 			{
 				my $dbf = $k;
+
 				if( my $t = $self -> meta() -> find_attribute_by_name( $k ) )
 				{
 					$dbf = ( $args{ '_table_alias' }
@@ -1218,7 +1525,9 @@ sub __form_additional_sql
 						 $self -> _db_table() ) .
 						 '.' .
 						 &__get_db_field_name( $t );
+
 				}
+
 				push @pairs, sprintf( '%s %s',
 						      $dbf, 
 						      $sort_order );
@@ -1243,6 +1552,13 @@ sub __form_additional_sql
 						 $self -> _db_table() ) . 
 						 '.' .
 						 &__get_db_field_name( $t );
+				} elsif( LittleORM::Model::Field -> this_is_field( $k ) )
+				{
+					$dbf = $k -> form_field_name_for_db_select( $k -> table_alias()
+										    or
+										    $args{ '_table_alias' }
+										    or
+										    $self -> _db_table() );
 				}
 
 				push @pairs, sprintf( '%s %s',
@@ -1261,6 +1577,13 @@ sub __form_additional_sql
 				$dbf = ( $args{ '_table_alias' }
 					 or
 					 $self -> _db_table() ) . '.' . &__get_db_field_name( $t1 );
+			} elsif( LittleORM::Model::Field -> this_is_field( $t ) )
+			{
+				$dbf = $t -> form_field_name_for_db_select( $t -> table_alias()
+									    or
+									    $args{ '_table_alias' }
+									    or
+									    $self -> _db_table() );
 			}
 
 			$sql .= ' ORDER BY ' . $dbf;
@@ -1328,6 +1651,39 @@ sub __form_additional_sql_groupby
 	return $rv;
 }
 
+sub __process_clause_sys_arg_in_form_where
+{
+	my ( $self, $val, $args ) = @_;
+
+	if( ref( $val ) eq 'ARRAY' )
+	{
+		my %more_args = ();
+		
+		if( my $ta = $args -> { '_table_alias' } )
+		{
+			$more_args{ 'table_alias' } = $ta;
+		}
+		
+		$val = $self -> clause( @{ $val },
+					%more_args );
+		
+		assert( ref( $val ) eq 'LittleORM::Clause' );
+	} else
+	{
+		assert( ref( $val ) eq 'LittleORM::Clause' );
+		if( my $ta = $args -> { '_table_alias' } )
+		{
+			unless( $val -> table_alias() )
+			{
+				my $copy = bless( { %{ $val } }, ref $val );
+				$val = $copy;
+				$val -> table_alias( $ta );
+			}
+		}
+	}
+	return $val;
+}
+
 sub __form_where
 {
 	my $self = shift;
@@ -1336,14 +1692,12 @@ sub __form_where
 	my %args = @args;
 
 	my @where_args = ();
-
 	my $dbh = $self -> __get_dbh( @args );
 
 
 fhFwaEknUtY5xwNr:
 	while( my $attr = shift @args )
 	{
-
 		my $val = shift @args;
 
 		if( $attr eq '_where' )
@@ -1352,35 +1706,9 @@ fhFwaEknUtY5xwNr:
 
 		} elsif( $attr eq '_clause' )
 		{
-			if( ref( $val ) eq 'ARRAY' )
-			{
-				my %more_args = ();
-
-				if( my $ta = $args{ '_table_alias' } )
-				{
-					$more_args{ 'table_alias' } = $ta;
-				}
-
-				$val = $self -> clause( @{ $val },
-							%more_args );
-
-				assert( ref( $val ) eq 'LittleORM::Clause' );
-			} else
-			{
-				assert( ref( $val ) eq 'LittleORM::Clause' );
-				if( my $ta = $args{ '_table_alias' } )
-				{
-					unless( $val -> table_alias() )
-					{
-						my $copy = bless( { %{ $val } }, ref $val );
-						$val = $copy;
-						$val -> table_alias( $ta );
-					}
-				}
-			}
-
+			$val = $self -> __process_clause_sys_arg_in_form_where( $val, 
+										\%args );
 			push @where_args, $val -> sql();
-
 		}
 
 		if( $attr =~ /^_/ ) # skip system agrs, they start with underscore
@@ -1389,54 +1717,75 @@ fhFwaEknUtY5xwNr:
 		}
 
 		my ( $op, $col ) = ( undef, undef );
+		my ( $val1_type, $val2_type ) = ( undef, undef );
 		my $ta = ( $args{ '_table_alias' } or $self -> _db_table() );
-		( $op, $val, $col ) = $self -> determine_op_and_col_and_correct_val( $attr, $val, $ta, \%args, $dbh ); # this
-														       # is
-														       # not
-														       # a
-														       # structured
-														       # method,
-														       # this
-														       # is
-														       # just
-														       # code
-														       # moved
-														       # away
-														       # from
-														       # growing
-														       # too
-														       # big
-														       # function,
-														       # hilarious
-														       # comment
-														       # formatting
-														       # btw,
-														       # thx
-														       # emacs
+
+		( $op,
+		  $val,
+		  $col,
+		  $val1_type,
+		  $val2_type ) = $self -> determine_op_and_col_and_correct_val( $attr, $val, $ta, \%args, $dbh ); # this
+														  # is
+														  # not
+														  # a
+														  # structured
+														  # method,
+														  # this
+														  # is
+														  # just
+														  # code
+														  # moved
+														  # away
+														  # from
+														  # growing
+														  # too
+														  # big
+														  # function,
+														  # hilarious
+														  # comment
+														  # formatting
+														  # btw,
+														  # thx
+														  # emacs
 		if( $op )
 		{
-			my $f = sprintf( "%s.%s",
-					 $ta,
-					 $col );
+			my $f = $col;
+
+			my $include_table_alias_into_sql = 1;
+
+			unless( ( exists $args{ '_include_table_alias_into_sql' } )
+				and
+				( $args{ '_include_table_alias_into_sql' } == 0 ) )
+			{
+				$f = $ta . '.' . $f;
+			}
 					 
 			if( LittleORM::Model::Field -> this_is_field( $attr ) )
 			{
-				#$attr -> assert_model_soft( $self );
 				$f = $attr -> form_field_name_for_db_select( $attr -> table_alias() or $ta );
 			}
 
-			push @where_args, sprintf( '%s %s %s', 
+			my $cast = '';
+
+			if( $val1_type and $val2_type and ( $val1_type ne $val2_type ) )
+			{
+				$cast = '::' . $val1_type;
+			}
+
+			push @where_args, sprintf( '%s %s %s%s', 
 						   $f,
 						   $op,
-						   $val );
+						   $val,
+						   $cast );
 		}
 	}
 
 	unless( @where_args )
 	{
-		@where_args = ( '1=1' );
+		@where_args = ( '3=3' );
 	}
-
+	# print Data::Dumper::Dumper( \@where_args );
+	# print Carp::longmess() . "\n\n\n";
 	return @where_args;
 }
 
@@ -1446,9 +1795,36 @@ sub determine_op_and_col_and_correct_val
 
 	my $op = '=';
 	my $col = 'UNUSED';
-
-	if( LittleORM::Model::Field -> this_is_field( $attr ) )
+	my ( $dbf_type1, $dbf_type2 ) = ( undef, undef );
+	my $class_attr = undef;
+	
+	unless( LittleORM::Model::Field -> this_is_field( $attr ) )
 	{
+		assert( $class_attr = $self -> meta() -> find_attribute_by_name( $attr ),
+			sprintf( 'invalid non-system attribute in where: %s', $attr ) );
+		
+		if( &__descr_attr( $class_attr, 'ignore' ) )
+		{
+			$op = undef;
+		} else
+		{
+			$attr = $self -> borrow_field( $class_attr -> name() );
+			$col = &__get_db_field_name( $class_attr );
+		}
+	}
+
+	if( $op and LittleORM::Model::Field -> this_is_field( $attr ) )
+	{
+		unless( $class_attr )
+		{
+			if( $attr -> base_attr() )
+			{
+				assert( $class_attr = $attr -> model() -> meta() -> find_attribute_by_name( $attr -> base_attr() ) );
+			}
+		}
+
+		$dbf_type1 = $attr -> db_field_type();
+
 		if( ref( $val ) eq 'HASH' )
 		{
 			my %t = %{ $val };
@@ -1457,33 +1833,24 @@ sub determine_op_and_col_and_correct_val
 				
 			if( ref( $rval ) eq 'ARRAY' )
 			{
-				# $val = sprintf( '(%s)', join( ',', map { &LittleORM::Db::dbq( $_,
-				# 							$dbh ) } @{ $rval } ) );
-				
-
-				$val = sprintf( '(%s)', join( ',', map { $self -> __prep_value_for_db_w_field( $_,
+				$val = sprintf( '(%s)', join( ',', map { $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $_ ),
 													       $ta,
 													       $args,
 													       $dbh ) } @{ $rval } ) );
 					
 			} else
 			{
-				# $val = &LittleORM::Db::dbq( $rval,
-				# 		      $dbh );
-
-
-				$val = $self -> __prep_value_for_db_w_field( $rval,
+				$val = $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $rval ),
 									     $ta,
 									     $args,
 									     $dbh );
-
 
 			}
 			
 		} elsif( ref( $val ) eq 'ARRAY' )
 		{
 			
-			if( my @values = map { $self -> __prep_value_for_db_w_field( $_,
+			if( my @values = map { $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $_ ),
 										     $ta,
 										     $args, 
 										     $dbh ) } @{ $val } )
@@ -1494,11 +1861,11 @@ sub determine_op_and_col_and_correct_val
 			{
 				$val = "ANY('{}')";
 			}
-			#$val = sprintf( 'ANY(%s)', &LittleORM::Db::dbq( \@values, $dbh ) );
 			
 		} elsif( LittleORM::Model::Field -> this_is_field( $val ) )
 		{ 
-			my $use_ta = $ta;
+			$dbf_type2 = $val -> db_field_type();
+			my $use_ta = ( $val -> table_alias() or $ta );
 			if( $val -> model() )
 			{
 				unless( $val -> model() eq $self )
@@ -1510,91 +1877,18 @@ sub determine_op_and_col_and_correct_val
 			$val = $val -> form_field_name_for_db_select( $use_ta );
 		} else
 		{
-			$val = &LittleORM::Db::dbq( $val,
-					      $dbh );
-		}
-
-	} else
-	{
-		assert( my $class_attr = $self -> meta() -> find_attribute_by_name( $attr ),
-			sprintf( 'invalid non-system attribute in where: %s', $attr ) );
-
-		if( &__descr_attr( $class_attr, 'ignore' ) )
-		{
-			next fhFwaEknUtY5xwNr;
-		}
-
-		my $class_attr_isa = $class_attr -> { 'isa' };
-		$col = &__get_db_field_name( $class_attr );
-		my $field = LittleORM::Db::Field -> by_type( &__descr_attr( $class_attr, 'db_field_type' ) or $class_attr_isa );
-		
-		if( ref( $val ) eq 'HASH' )
-		{
-			if( $class_attr_isa =~ 'HashRef' )
+			if( LittleORM::Model::Value -> this_is_value( $val ) )
 			{
-				1;
-				# next fhFwaEknUtY5xwNr;
-			} else
-			{
-				my %t = %{ $val };
-				my $rval = undef;
-				( $op, $rval ) = each %t;
-				
-				if( ref( $rval ) eq 'ARRAY' )
-				{
-					
-					$val = sprintf( '(%s)', join( ',', map { $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $_ ),
-														       $ta,
-														       $args,
-														       $dbh )  } @{ $rval } ) );
-
-				
-				} else
-				{
-					#my $v = &__prep_value_for_db( $class_attr, $rval ); # wtf is this for
-					
-					$val = $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $rval ),
-										     $ta,
-										     $args,
-										     $dbh );
-
-
-				}
+				$dbf_type2 = $val -> db_field_type();
 			}
-			
-		} elsif( ref( $val ) eq 'ARRAY' )
-		{
-			
-			if( $class_attr_isa =~ 'ArrayRef' )
-			{
-				$val = &LittleORM::Db::dbq( &__prep_value_for_db( $class_attr, $val ),
-						      $dbh );
-			} else
-			{
-				my @values = map { $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $_ ),
-											 $ta,
-											 $args ) } @{ $val };
-				$val = sprintf( 'ANY(%s)', &LittleORM::Db::dbq( \@values, $dbh ) );
-			}
-			
-		} else
-		{
-
 			$val = $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $val ),
 								     $ta,
 								     $args,
 								     $dbh );
-
-
-			# $val = &LittleORM::Db::dbq( &__prep_value_for_db( $class_attr, $val ),
-			# 		      $dbh );
 		}
-		
-		$op = $field -> appropriate_op( $op );
-		
 	}
-	
-	return ( $op, $val, $col );
+
+	return ( $op, $val, $col, $dbf_type1, $dbf_type2 );
 }
 
 sub __prep_value_for_db_w_field
@@ -1700,73 +1994,6 @@ sub __descr_attr
 	}
 
 	return $rv;
-}
-
-sub __get_dbh
-{
-	my $self = shift;
-
-	my %args = @_;
-
-	my $dbh = &LittleORM::Db::dbh_is_ok( $self -> __get_class_dbh() );
-
-	unless( $dbh )
-	{
-		if( my $t = &LittleORM::Db::dbh_is_ok( $args{ '_dbh' } ) )
-		{
-			$dbh = $t;
-			$self -> __set_class_dbh( $dbh );
-			LittleORM::Db -> __set_default_if_not_set( $dbh );
-		}
-	}
-
-	unless( $dbh )
-	{
-		if( my $t = &LittleORM::Db::dbh_is_ok( &LittleORM::Db::get_dbh() ) )
-		{
-			$dbh = $t;
-			$self -> __set_class_dbh( $dbh );
-		}
-	}
-
-	assert( &LittleORM::Db::dbh_is_ok( $dbh ), 'this method is supposed to return valid dbh' );
-
-	return $dbh;
-}
-
-sub __get_class_dbh
-{
-
-	my $self = shift;
-
-	my $calling_package = ( ref( $self ) or $self );
-
-	my $dbh = undef;
-
-	{
-		no strict "refs";
-		$dbh = ${ $calling_package . "::_dbh" };
-	}
-
-	return $dbh;
-
-	
-}
-
-sub __set_class_dbh
-{
-	my $self = shift;
-
-	my $calling_package = ( ref( $self ) or $self );
-
-	my $dbh = shift;
-
-
-	{
-		no strict "refs";
-		${ $calling_package . "::_dbh" } = $dbh;
-	}
-
 }
 
 42;

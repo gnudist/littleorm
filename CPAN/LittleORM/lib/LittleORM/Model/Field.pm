@@ -31,14 +31,16 @@ has 'post_process' => ( is => 'rw',
 			isa => 'CodeRef',
 			default => sub { sub { $_[ 0 ] } } );
 
-has 'type_preserve' => ( is => 'rw',
-			 isa => 'Bool',
-			 default => 0 );
+has 'db_field_type' => ( is => 'rw',
+			 isa => 'Str' );
 
 has '_distinct' => ( is => 'rw',
 		     isa => 'Bool',
 		     default => 0 );
 
+has 'orm_coerce' => ( is => 'rw',
+		      isa => 'Bool',
+		      default => 1 );
 
 use Carp::Assert 'assert';
 use Scalar::Util 'blessed';
@@ -122,7 +124,8 @@ sub form_field_name_for_db_select
 	if( $rv )
 	{
 		assert( $self -> model() );
-		$rv = $table . '.' . &LittleORM::Model::__get_db_field_name( $self -> model() -> meta() -> find_attribute_by_name( $rv ) );
+		$rv = ( $table ? $table . '.' : '' ) .
+		      &LittleORM::Model::__get_db_field_name( $self -> model() -> meta() -> find_attribute_by_name( $rv ) );
 	}
 
 	if( my $f = $self -> db_func() )
