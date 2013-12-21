@@ -13,7 +13,9 @@ no Moose::Role;
 
 
 
-package ORM;
+package LittleORM;
+
+our $VERSION = '0.13';
 
 use Moose;
 use Moose::Exporter;

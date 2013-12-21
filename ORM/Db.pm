@@ -69,56 +69,54 @@ sub __get_rand_array_el
 
 # this method is tested to work:
 
-=pod
-use strict;
+
+# use strict;
 
 
-my @arr = ( 1 .. 10 );
+# my @arr = ( 1 .. 10 );
 
-my %stats = ();
+# my %stats = ();
 
-foreach ( 1 .. 10000 )
-{
-	$stats{ &rand_el( \@arr ) } ++;
-}
+# foreach ( 1 .. 10000 )
+# {
+# 	$stats{ &rand_el( \@arr ) } ++;
+# }
 
-while( my ( $k, $v ) = each %stats )
-{
-	print $k, " => ", $v, "\n";
-}
+# while( my ( $k, $v ) = each %stats )
+# {
+# 	print $k, " => ", $v, "\n";
+# }
 
 
-sub rand_el
-{
-	my $arr = shift;
+# sub rand_el
+# {
+# 	my $arr = shift;
 
-	return $arr -> [ rand @{ $arr } ];
+# 	return $arr -> [ rand @{ $arr } ];
 
-}
+# }
 
-6 => 1023
-3 => 1000
-7 => 961
-9 => 945
-2 => 998
-8 => 1040
-1 => 1071
-4 => 974
-10 => 997
-5 => 991
-eugenek@carbon:~$ perl /tmp/test.pl
-6 => 995
-3 => 979
-7 => 984
-9 => 1026
-2 => 983
-8 => 984
-4 => 1008
-1 => 1048
-10 => 1021
-5 => 972
-
-=cut
+# 6 => 1023
+# 3 => 1000
+# 7 => 961
+# 9 => 945
+# 2 => 998
+# 8 => 1040
+# 1 => 1071
+# 4 => 974
+# 10 => 997
+# 5 => 991
+# eugenek@carbon:~$ perl /tmp/test.pl
+# 6 => 995
+# 3 => 979
+# 7 => 984
+# 9 => 1026
+# 2 => 983
+# 8 => 984
+# 4 => 1008
+# 1 => 1048
+# 10 => 1021
+# 5 => 972
 
 
 }
