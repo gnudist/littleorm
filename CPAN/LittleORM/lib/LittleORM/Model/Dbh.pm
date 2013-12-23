@@ -122,6 +122,15 @@ sub __get_dbh
 # 	return $dbh;
 # }
 
+sub get_class_dbh
+{
+	return &__get_class_dbh( @_ );
+}
+
+sub set_class_dbh
+{
+	return &__set_class_dbh( @_ );
+}
 
 sub __get_class_dbh
 {

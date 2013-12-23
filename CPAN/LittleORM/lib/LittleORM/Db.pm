@@ -69,6 +69,7 @@ sub __get_rand_array_el
 
 # this method is tested to work:
 
+
 # use strict;
 
 
@@ -165,7 +166,9 @@ sub getrow
 
 	unless( $dbh )
 	{
-		assert( 0, 'cant safely fall back to read dbh here' );
+		warn( "(getrow) no DBH passed, failing back to write DBH" );
+		$dbh = &get_write_dbh();
+		# assert( 0, 'cant safely fall back to read dbh here' );
 	}
 
 
@@ -179,7 +182,9 @@ sub prep
 
 	unless( $dbh )
 	{
-		assert( 0, 'cant safely fall back to read dbh here' );
+		warn( "(prep) no DBH passed, failing back to write DBH" );
+		$dbh = &get_write_dbh();
+		# assert( 0, 'cant safely fall back to read dbh here' );
 	}
 
 	return $dbh -> prepare( $sql );
@@ -192,7 +197,9 @@ sub doit
 
 	unless( $dbh )
 	{
-		assert( 0, 'cant safely fall back to read dbh here too' );
+		warn( "(doit) no DBH passed, failing back to write DBH" );
+		$dbh = &get_write_dbh();
+		#assert( 0, 'cant safely fall back to read dbh here too' );
 	}
 
 	return $dbh -> do( $sql );
