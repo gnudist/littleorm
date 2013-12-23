@@ -1,5 +1,6 @@
 Changes
 lib/LittleORM.pm
+lib/LittleORM/Tutorial.pm
 lib/LittleORM/Filter.pm
 lib/LittleORM/Model/Dbh.pm
 lib/LittleORM/Model/Field.pm
