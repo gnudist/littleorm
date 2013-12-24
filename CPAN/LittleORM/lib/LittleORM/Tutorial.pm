@@ -45,6 +45,71 @@ Continuing with this tutorial I assume that you're more or less
 familiar with Moose. If not, then get acquainted before moving
 on. Moving on.
 
+=head1 INITIALIZATION
+
+
+Most standard way, one database:
+
+
+    LittleORM::Db -> init( $dbh );
+
+
+Where $dbh is a connected database handle you received from L<DBI> .
+
+Starting with version 0.13 you can use separate $dbh handles for
+reading and writing operations. NOTE: reading operation is assumed to
+be C<SELECT> . This is useful for heavy-duty projects where you may
+have several separate read-only DB servers and one read-write master
+DB server.
+
+In such cases you can use:
+
+
+    LittleORM::Db -> init( { read => $dbh1,
+                             write => $dbh2 } );
+
+Or
+
+
+    LittleORM::Db -> init( { read => [ $dbh1, $dbh2, ... ],
+                             write => $dbh3 } );
+
+
+Or
+
+
+    LittleORM::Db -> init( { read => [ $dbh1, $dbh2, ... ],
+                             write => [ $dbh3, $dbh4, ... ] } );
+
+
+
+Etc.
+
+=head1 MORE CONVENIENT WAY TO DECLARE MODEL ATTRS
+
+
+As of version 0.10 (at least) LittleORM supports more convenient
+attribute declaration, like:
+
+
+    package Models::Book;
+    use LittleORM;
+    extends 'LittleORM::Model';
+    
+    sub _db_table { 'book' }
+    
+    has_field 'id' => ( isa => 'Int',
+                        description => { primary_key => 1 } );
+    
+    has_field 'title' => ( isa => 'Str' );
+    
+    has_field 'author' => ( isa => 'Models::AuthorHF',
+    			    description => { foreign_key => 'yes' } );
+
+
+However, the rest of this tutorial was written earlier, and hence uses
+standard Moose attributes syntax with "has". Didn't have time to
+rewrite it yet. Now read on.
 
 
 =head1 WRITING YOUR MODEL
@@ -77,16 +142,13 @@ We'll call it MyModel::Author. So, let's write:
 
 
     package MyModel::Author;
-    use Moose;
+    use LittleORM;
     extends 'LittleORM::Model';
     
     # the first column, is PK, id:
     
-    has 'id' => ( metaclass => 'LittleORM::Meta::Attribute',
-                  isa => 'Int',
-                  is => 'rw',
-                  description => { primary_key => 1 } );
-
+    has_field 'id' => ( isa => 'Int',
+                        description => { primary_key => 1 } );
 
 Note C<< description => { ... } >> attribute. It is how you tell
 LittleORM things about your columns. C<< metaclass =>
@@ -98,7 +160,7 @@ LittleORM. So we re-write our model:
 
 
     package MyModel::Author;
-    use Moose;
+    use LittleORM;
     extends 'LittleORM::GenericID';
     
 
@@ -107,30 +169,24 @@ with. Redefine C<< sub _db_table >> for that:
 
 
     package MyModel::Author;
-    use Moose;
+    use LittleORM;
     extends 'LittleORM::GenericID';
 
     sub _db_table { 'author' }
 
     # Now other columns:
 
-    has 'name' => ( is => 'rw',
-                    isa => 'Str' );
+    has_field 'name' => ( isa => 'Str' );
     
-    has 'email' => ( is => 'rw',
-                     isa => 'Str' );
+    has_field 'email' => ( isa => 'Str' );
     
-    has 'login' => ( is => 'rw',
-                     isa => 'Str' );
+    has_field 'login' => ( isa => 'Str' );
     
-    has 'pwdsum' => ( is => 'rw',
-                      isa => 'Str' );
+    has_field 'pwdsum' => ( isa => 'Str' );
     
-    has 'active' => ( is => 'rw',
-                      isa => 'Bool' );
+    has_field 'active' => ( isa => 'Bool' );
     
-    has 'rctype' => ( is => 'rw',
-                      isa => 'Int' );
+    has_field 'rctype' => ( isa => 'Int' );
     
 
 NOTE: You would want to write C<< Maybe[Str], Maybe[Int] >> if your
@@ -144,12 +200,10 @@ attributes and methods. A bit artificial example is C<< valid_email >>
 attribute:
 
 
-    has 'valid_email' => ( is => 'rw',
-                           isa => 'Bool',
-                           metaclass => 'LittleORM::Meta::Attribute',
-                           lazy => 1,
-                           builder    => '_is_valid_email', # your sub
-                           description => { ignore => 1 } );
+    has_field 'valid_email' => ( isa => 'Bool',
+                                 lazy => 1,
+                                 builder    => '_is_valid_email', # your sub
+                                 description => { ignore => 1 } );
 
 Note C<< description => { ignore => 1 } >> attribute. It's not present
 in the table, so LittleORM must ignore it. This descriptions tells it
@@ -268,7 +322,7 @@ Delete can be dangerous. Remeber that.
     MyModel::Author -> delete( id => 100500 );
 
 
-# deletes all authors:
+# deletes all authors (!):
 
     MyModel::Author -> delete();
 
@@ -469,25 +523,31 @@ author.id >>. That's our FK. OK, now let's write the model for books :
 
 
     package MyModel::Book;
-    use Moose;
+    use LittleORM;
     extends 'LittleORM::GenericID';
 
-    has 'title' => ( is => 'rw', isa => 'Str' );
+    has_field 'title' => ( isa => 'Str' );
     
     # we'll convert this to DateTime later:
-    has 'published' => ( is => 'rw', isa => 'Str' ); 
+    has_field 'published' => ( isa => 'Str' ); 
 
     # and finally:
 
-    has 'author' => ( is => 'rw',
-    		      isa => 'MyModel::Author',
-    		      metaclass => 'LittleORM::Meta::Attribute',
-    		      description => { foreign_key => 'MyModel::Author' } );
+    has_field 'author' => ( isa => 'MyModel::Author',
+                            description => { foreign_key => 'MyModel::Author' } );
     
+    # or
+
+    has_field 'author' => ( isa => 'MyModel::Author',
+                            description => { foreign_key => 'yes' } );
+
+
+    # "yes" keyword tells LittleORM to load model specified in "isa",
+    # so you don't have to write it's name again.
+
 
 
 And that is all. Now we can do something like:
-
 
 
     use strict;
@@ -511,13 +571,11 @@ Now this is possible only if relation 1-to-1. Although C<< author >>
 table does not contain C<< book >> column we could write:
 
 
-    has 'book' => ( is          => 'rw', 
-                    isa         => 'MyModel::Book',
-    		    metaclass   => 'LittleORM::Meta::Attribute',
-    		    description => { foreign_key  => 'MyModel::Book',
-    				     ignore_write => 1, # cant write it
-    				     db_field     => 'id', 
-    				     foreign_key_attr_name => 'author' } );
+    has_field 'book' => ( isa         => 'MyModel::Book',
+                          description => { foreign_key  => 'yes',
+    				           ignore_write => 1, # cant write it
+    				           db_field     => 'id', 
+    				           foreign_key_attr_name => 'author' } );
 
 
 
@@ -535,14 +593,12 @@ I<coerce_from>
 Subroutine, which is called to convert DB field value into your class
 attribute value. Remember when we wrote:
 
-    has 'published' => ( is => 'rw', isa => 'Str' ); 
+    has_field 'published' => ( isa => 'Str' ); 
 
 That's not very cool. Here is how to have DateTime there:
 
-    has 'published' => ( is => 'rw',
-    		         metaclass => 'ORM::Meta::Attribute',
-    		         isa => 'DateTime',
-                         description => { coerce_from => sub { &ts2dt( $_[ 0 ] ) } } );
+    has_field 'published' => ( isa => 'DateTime',
+                               description => { coerce_from => sub { &ts2dt( $_[ 0 ] ) } } );
 
 
 With ts2dt() being something like:
@@ -562,11 +618,9 @@ convert DateTime back to DB format. We should either put C<<
 ignore_write >> there, or provide I<coerce_to>:
 
 
-    has 'published' => ( is => 'rw',
-    		         metaclass => 'ORM::Meta::Attribute',
-    		         isa => 'DateTime',
-                         description => { coerce_from => sub { &ts2dt( $_[ 0 ] ) },
-                                          coerce_to => sub { &dt2ts( $_[ 0 ] ) } } );
+    has_field 'published' => ( isa => 'DateTime',
+                               description => { coerce_from => sub { &ts2dt( $_[ 0 ] ) },
+                                                coerce_to => sub { &dt2ts( $_[ 0 ] ) } } );
 
 
 
@@ -591,10 +645,8 @@ appropriate. You can have attribute in your model with a name
 different from db column name:
 
 
-    has 'product' => ( is => 'rw',
-		       metaclass => 'ORM::Meta::Attribute',
-		       isa => 'ExampleModel',
-		       description => { db_field => 'pid' } );
+    has_field 'product' => ( isa => 'ExampleModel',
+		             description => { db_field => 'pid' } );
 
 
 I<db_field_type>
@@ -603,10 +655,8 @@ Well, that is a mechanism to determine a correct SQL operation for
 underlying DB column depending on it's type.
 
 
-    has 'attrs' => ( is => 'rw',
-		     metaclass => 'ORM::Meta::Attribute',
-		     isa => 'Str',
-		     description => { db_field_type => 'xml' } );
+    has_field 'attrs' => ( isa => 'Str',
+                           description => { db_field_type => 'xml' } );
 
 
 'xml' is the only known field type currently.

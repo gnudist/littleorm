@@ -62,27 +62,7 @@ sub __get_dbh
 		    or
 		    &LittleORM::Db::get_dbh( $for_what ) );
 
-	# my $dbh = &LittleORM::Db::dbh_is_ok( $self -> __get_class_dbh( $for_what ) );
-
-	# unless( $dbh )
-	# {
-	# 	if( my $t = $args{ '_dbh' } )
-	# 	{
-	# 		$dbh = $t;
-	# 		$self -> __set_class_dbh( $dbh, $for_what );
-	# 	}
-	# }
-
-	# unless( $dbh )
-	# {
-	# 	if( my $t = &LittleORM::Db::get_dbh( $for_what ) )
-	# 	{
-	# 		$dbh = $t;
-	# 		$self -> __set_class_dbh( $dbh, $for_what );
-	# 	}
-	# }
-
-	assert( &LittleORM::Db::dbh_is_ok( $dbh ), 'this method is supposed to return valid dbh' );
+	# assert( &LittleORM::Db::dbh_is_ok( $dbh ), 'this method is supposed to return valid dbh' );
 
 	return $dbh;
 }
