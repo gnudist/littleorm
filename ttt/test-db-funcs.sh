@@ -19,6 +19,15 @@ return $RC
 }
 
 
+user_dbcommand1() 
+{
+COMMAND=$1
+$PSQL -U $TESTDBUSER -c "$COMMAND" "${TESTDBNAME1}"
+RC=$?
+return $RC
+}
+
+
 
 
 assert()

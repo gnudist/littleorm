@@ -15,6 +15,11 @@ has 'author' => ( is => 'rw',
 		  metaclass => 'ORM::Meta::Attribute',
 		  description => { foreign_key => 'Models::Author' } );
 
+has 'country' => ( is => 'rw',
+		   isa => 'Models::Country',
+		   metaclass => 'ORM::Meta::Attribute',
+		   description => { foreign_key => 'Models::Country' } );
+
 has 'married' => ( is => 'rw',
 		   isa => 'Bool' );
 

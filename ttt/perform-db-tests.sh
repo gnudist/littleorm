@@ -17,8 +17,10 @@ assert $?
 admin_dbcommand "ALTER USER ${TESTDBUSER} WITH PASSWORD '${TESTDBPASS}'"
 assert $?
 
-
 admin_dbcommand "CREATE DATABASE ${TESTDBNAME} OWNER=${TESTDBUSER}"
+assert $?
+
+admin_dbcommand "CREATE DATABASE ${TESTDBNAME1} OWNER=${TESTDBUSER}"
 assert $?
 
 # db created, fill it
@@ -29,6 +31,11 @@ echo
 
 user_dbcommand "\i ./test-db-fill.sql"
 assert $?
+
+
+user_dbcommand1 "\i ./test-db1-fill.sql"
+assert $?
+
 
 fi
 
@@ -68,6 +75,9 @@ echo
 
 
 admin_dbcommand "DROP DATABASE ${TESTDBNAME}"
+assert $?
+
+admin_dbcommand "DROP DATABASE ${TESTDBNAME1}"
 assert $?
 
 admin_dbcommand "DROP USER ${TESTDBUSER}"

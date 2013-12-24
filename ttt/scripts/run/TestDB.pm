@@ -24,7 +24,12 @@ use Data::Dumper 'Dumper';
 
 sub __actually_connect
 {
-	my %args = &__collect_connect_parameters();
+	my %args = @_;
+
+	unless( %args )
+	{
+		%args = &__collect_connect_parameters();
+	}
 
 	my ( $dbname,
 	     $dbhost,
@@ -53,7 +58,7 @@ sub __collect_connect_parameters()
 
 	assert( open( my $fh, '<', $config ) );
 
-	my $rx = qr/^(TESTDBNAME|TESTDBUSER|TESTDBPASS|TESTDBPORT|TESTDBHOST)\=([\w\.]+)/;
+	my $rx = qr/^(TESTDBNAME1|TESTDBNAME|TESTDBUSER|TESTDBPASS|TESTDBPORT|TESTDBHOST)\=([\w\.]+)/;
 
 	while( my $line = <$fh> )
 	{

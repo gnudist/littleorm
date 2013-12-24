@@ -1130,7 +1130,9 @@ sub __lazy_build_value_actual
 		}
 		
 		$t = $foreign_key -> get( $foreign_key_attr_name => $t,
-					  _dbh => $foreign_key -> __get_dbh( &__for_read() ) );
+					  _dbh => ( $foreign_key -> __get_dbh( &__for_read() ) 
+						    or
+						    $self -> __get_dbh( &__for_read() ) ) );
 	}
 	
 	return $t;
