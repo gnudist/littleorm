@@ -1119,6 +1119,13 @@ sub __lazy_build_value_actual
 		
 	} elsif( my $foreign_key = &__descr_attr( $attr, 'foreign_key' ) )
 	{
+		if( $foreign_key eq 'yes' )
+		{
+			# sugar
+			assert( $attr -> has_type_constraint() );
+			$foreign_key = $attr -> type_constraint() -> name();
+		}
+
 		&__load_module( $foreign_key );
 
 		my $foreign_key_attr_name = &__descr_attr( $attr, 'foreign_key_attr_name' );
