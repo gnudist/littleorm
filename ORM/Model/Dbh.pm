@@ -2,6 +2,8 @@ use strict;
 
 # DBH-related routines which were inside ORM/Model.pm earlier
 
+use ORM::Db::Connector ();
+
 package ORM::Model;
 
 use Carp::Assert 'assert';
@@ -56,9 +58,20 @@ sub __get_dbh
 
 	assert( my $for_what = $args{ '_for_what' } ); # i must know what this DBH you need for
 
+	my $class_dbh = $self -> __get_class_dbh( $for_what );
+
+	unless( $class_dbh )
+	{
+		$self -> __set_db_connector_object_if_required();
+		if( my $c = $self -> meta() -> _littleorm_db_connector() )
+		{
+			$class_dbh = $c -> get_dbh( $for_what );
+		}
+	}
+
 	my $dbh = ( $args{ '_dbh' }
 		    or
-		    $self -> __get_class_dbh( $for_what ) 
+		    $class_dbh
 		    or
 		    &ORM::Db::get_dbh( $for_what ) );
 
@@ -174,6 +187,22 @@ sub __set_class_dbh
 	# 	${ $calling_package . "::_dbh" } = $dbh;
 	# }
 
+}
+
+sub __set_db_connector_object_if_required
+{
+	my $self = shift;
+
+	my $m = 'littleorm_db_connector_config';
+
+	if( $self -> can( $m ) )
+	{
+		unless( $self -> meta() -> _littleorm_db_connector() )
+		{
+			my $c = ORM::Db::Connector -> new( $self -> $m() );
+			$self -> meta() -> _littleorm_db_connector( $c );
+		}
+	}
 }
 
 42;
