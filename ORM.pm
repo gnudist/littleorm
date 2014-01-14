@@ -104,7 +104,9 @@ sub __has_field_no_check
 			return $self -> __lazy_build_value( $attr );
 		};
 	}
-
+	
+	$args{ 'is' } ||= 'rw';
+	
 	$attr = $meta -> add_attribute( $name, %args );
 
 	Scalar::Util::weaken( $attr );
