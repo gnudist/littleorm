@@ -1,3 +1,5 @@
+use strict;
+
 package ORM::Db::Field::Default;
 
 use Moose;

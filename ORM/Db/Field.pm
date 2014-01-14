@@ -1,3 +1,4 @@
+use strict;
 
 use ORM::Db::Field::Default;
 use ORM::Db::Field::XML;

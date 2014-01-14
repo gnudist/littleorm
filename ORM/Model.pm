@@ -1,3 +1,5 @@
+use strict;
+
 use ORM::Db ();
 use ORM::Db::Field ();
 use ORM::Meta::LittleORMHasDbh ();

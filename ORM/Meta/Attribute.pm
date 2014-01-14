@@ -1,3 +1,5 @@
+use strict;
+
 package ORM::Meta::Attribute;
 
 use Moose;

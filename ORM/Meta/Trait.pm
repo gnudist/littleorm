@@ -1,3 +1,5 @@
+use strict;
+
 package ORM::Meta::Trait;
 
 use Moose::Role;

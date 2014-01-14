@@ -1,4 +1,6 @@
 
+use strict;
+
 use ORM::Model;
 
 package ORM::GenericID;
