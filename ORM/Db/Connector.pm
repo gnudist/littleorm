@@ -47,7 +47,7 @@ sub get_read_dbh
 
 	if( $self -> do_dbh_caching() )
 	{
-		if( my $t = $self -> __cached_read_dbh() )
+		if( my $t = &ORM::Db::dbh_is_ok( $self -> __cached_read_dbh() ) )
 		{
 			$rv = $t;
 		} else
@@ -72,7 +72,7 @@ sub get_write_dbh
 
 	if( $self -> do_dbh_caching() )
 	{
-		if( my $t = $self -> __cached_write_dbh() )
+		if( my $t = &ORM::Db::dbh_is_ok( $self -> __cached_write_dbh() ) )
 		{
 			$rv = $t;
 		} else
