@@ -12,12 +12,11 @@ sub clause
 
 	my $class = ( ref( $self ) or $self );
 
-	return ORM::Clause -> new( model => $class,
-				   @args );
+	my @clause_creation_args = ( model => $class,
+				     ORM::Clause -> __smart_clause_creation_args( @args ) );
 
+	return ORM::Clause -> new( @clause_creation_args );
 }
-
-
 
 package ORM::Clause;
 
@@ -27,6 +26,36 @@ has 'logic' => ( is => 'rw', isa => 'Str', default => 'AND' );
 has 'model' => ( is => 'rw', isa => 'Str', required => 1 );
 has 'table_alias' => ( is => 'rw', isa => 'Maybe[Str]' );
 has 'cond' => ( is => 'rw', isa => 'ArrayRef', default => sub { [] } );
+
+sub __smart_clause_creation_args
+{
+	my $self = shift;
+	my @args = @_;
+
+	my %my_attrs = map { $_ -> name() => 1 } $self -> meta() -> get_all_attributes();
+	my @goes_into_cond = ();
+	my @goes_as_is = ();
+
+	while( my $arg = shift @args )
+	{
+		my $value = shift @args;
+
+		if( exists $my_attrs{ $arg } )
+		{
+			push @goes_as_is, ( $arg => $value );
+		} else
+		{
+			push @goes_into_cond, ( $arg => $value );
+		}
+	}
+
+	if( @goes_into_cond )
+	{
+		push @goes_as_is, ( cond => \@goes_into_cond );
+	}
+
+	return @goes_as_is;
+}
 
 sub sql
 {
