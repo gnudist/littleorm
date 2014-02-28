@@ -196,8 +196,11 @@ sub __set_db_connector_object_if_required
 	{
 		unless( $self -> meta() -> _littleorm_db_connector() )
 		{
-			my $c = ORM::Db::Connector -> new( $self -> $m() );
-			$self -> meta() -> _littleorm_db_connector( $c );
+			if( my @args = $self -> $m() )
+			{
+				my $c = ORM::Db::Connector -> new( @args );
+				$self -> meta() -> _littleorm_db_connector( $c );
+			}
 		}
 	}
 }

@@ -60,6 +60,19 @@ use Data::Dumper 'Dumper';
 
 }
 
+{
+	eval {
+		my $c1 = Models::Author -> clause( cond => [ id => 123 ],
+						   id => 456,
+						   logic => 'OR' );
+	};
+
+	ok( $@, 'ambiguous clause creation error raised' );
+
+
+
+}
+
 
 ok( 1, "didnt crash" );
 

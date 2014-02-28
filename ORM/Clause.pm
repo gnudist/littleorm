@@ -27,6 +27,9 @@ has 'model' => ( is => 'rw', isa => 'Str', required => 1 );
 has 'table_alias' => ( is => 'rw', isa => 'Maybe[Str]' );
 has 'cond' => ( is => 'rw', isa => 'ArrayRef', default => sub { [] } );
 
+use Carp::Assert 'assert';
+use Data::Dumper 'Dumper';
+
 sub __smart_clause_creation_args
 {
 	my $self = shift;
@@ -35,6 +38,7 @@ sub __smart_clause_creation_args
 	my %my_attrs = map { $_ -> name() => 1 } $self -> meta() -> get_all_attributes();
 	my @goes_into_cond = ();
 	my @goes_as_is = ();
+	my $seen_cond = 0;
 
 	while( my $arg = shift @args )
 	{
@@ -42,6 +46,11 @@ sub __smart_clause_creation_args
 
 		if( exists $my_attrs{ $arg } )
 		{
+			if( $arg eq 'cond' )
+			{
+				$seen_cond = 1;
+			}
+
 			push @goes_as_is, ( $arg => $value );
 		} else
 		{
@@ -51,6 +60,8 @@ sub __smart_clause_creation_args
 
 	if( @goes_into_cond )
 	{
+		assert( ( $seen_cond == 0 ),
+			'ambiguous clause creation arguments: ' . Dumper( \@args ) );
 		push @goes_as_is, ( cond => \@goes_into_cond );
 	}
 
