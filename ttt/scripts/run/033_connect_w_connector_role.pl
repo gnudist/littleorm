@@ -7,9 +7,11 @@ package main;
 
 use Test::More;
 
-use Models::BookHFwC ();
-use Models::BookHFwCE ();
+use Models::BookHFwC ();  # this model has connector role which reaturns meaningful connecting code
+use Models::BookHFwCE (); # this model has connector role which reaturns empty arguments, no connecting code
 
+# In real life we now can vary whenever we want or we do not want to
+# automatically connect, placing the logic into connect-info-role.
 
 {
 	my @t = Models::BookHFwC -> get_many();
