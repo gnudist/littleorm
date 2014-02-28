@@ -1,0 +1,7 @@
+LittleORM was originally created, and still being developed under
+'ORM' namespace. But it turned out this namespace was already taken
+when I finally decided to put it on CPAN.
+
+That is why LittleORM is known under 'LittleORM' on CPAN.
+
+In this directory lies a separate source tree for CPAN distro only.
