@@ -1,6 +1,6 @@
 use strict;
 
-package ORM::Db::Connector;
+package LittleORM::Db::Connector;
 use Moose;
 
 has 'do_dbh_caching' => ( is => 'ro', isa => 'Bool', default  => 1 );
@@ -13,7 +13,7 @@ has '__cached_read_dbh'  => ( is => 'rw', isa => 'DBI::db' );
 has '__cached_write_dbh' => ( is => 'rw', isa => 'DBI::db' );
 
 use Carp::Assert 'assert';
-use ORM::Db ();
+use LittleORM::Db ();
 
 sub get_dbh
 {
@@ -34,7 +34,7 @@ sub get_dbh
 		assert( 0, 'for what: ' . $for_what );
 	}
 
-	assert( &ORM::Db::dbh_is_ok( $rv ) );
+	assert( &LittleORM::Db::dbh_is_ok( $rv ) );
 
 	return $rv;
 }
@@ -47,7 +47,7 @@ sub get_read_dbh
 
 	if( $self -> do_dbh_caching() )
 	{
-		if( my $t = &ORM::Db::dbh_is_ok( $self -> __cached_read_dbh() ) )
+		if( my $t = &LittleORM::Db::dbh_is_ok( $self -> __cached_read_dbh() ) )
 		{
 			$rv = $t;
 		} else
@@ -72,7 +72,7 @@ sub get_write_dbh
 
 	if( $self -> do_dbh_caching() )
 	{
-		if( my $t = &ORM::Db::dbh_is_ok( $self -> __cached_write_dbh() ) )
+		if( my $t = &LittleORM::Db::dbh_is_ok( $self -> __cached_write_dbh() ) )
 		{
 			$rv = $t;
 		} else

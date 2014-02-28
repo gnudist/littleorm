@@ -1,4 +1,6 @@
 
+use strict;
+
 use LittleORM::Model;
 
 package LittleORM::GenericID;

@@ -1,3 +1,4 @@
+use strict;
 
 use LittleORM::Db::Field::Default;
 use LittleORM::Db::Field::XML;

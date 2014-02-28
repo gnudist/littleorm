@@ -37,7 +37,9 @@ means that you have to do yourself:
   you write your model.
 
 - Connect to your DB with DBI. You connect to database, then
-  initialize ORM with valid connected $dbh.
+  initialize ORM with valid connected $dbh. (Not actually correct
+  anymore: you can provide your model with function which will be used
+  to connect to DB).
 
 Did I say 2 things? OK, I meant 3.
 

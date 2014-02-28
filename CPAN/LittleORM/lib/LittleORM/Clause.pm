@@ -12,12 +12,11 @@ sub clause
 
 	my $class = ( ref( $self ) or $self );
 
-	return LittleORM::Clause -> new( model => $class,
-				   @args );
+	my @clause_creation_args = ( model => $class,
+				     LittleORM::Clause -> __smart_clause_creation_args( @args ) );
 
+	return LittleORM::Clause -> new( @clause_creation_args );
 }
-
-
 
 package LittleORM::Clause;
 
@@ -27,6 +26,47 @@ has 'logic' => ( is => 'rw', isa => 'Str', default => 'AND' );
 has 'model' => ( is => 'rw', isa => 'Str', required => 1 );
 has 'table_alias' => ( is => 'rw', isa => 'Maybe[Str]' );
 has 'cond' => ( is => 'rw', isa => 'ArrayRef', default => sub { [] } );
+
+use Carp::Assert 'assert';
+use Data::Dumper 'Dumper';
+
+sub __smart_clause_creation_args
+{
+	my $self = shift;
+	my @args = @_;
+
+	my %my_attrs = map { $_ -> name() => 1 } $self -> meta() -> get_all_attributes();
+	my @goes_into_cond = ();
+	my @goes_as_is = ();
+	my $seen_cond = 0;
+
+	while( my $arg = shift @args )
+	{
+		my $value = shift @args;
+
+		if( exists $my_attrs{ $arg } )
+		{
+			if( $arg eq 'cond' )
+			{
+				$seen_cond = 1;
+			}
+
+			push @goes_as_is, ( $arg => $value );
+		} else
+		{
+			push @goes_into_cond, ( $arg => $value );
+		}
+	}
+
+	if( @goes_into_cond )
+	{
+		assert( ( $seen_cond == 0 ),
+			'ambiguous clause creation arguments: ' . Dumper( \@args ) );
+		push @goes_as_is, ( cond => \@goes_into_cond );
+	}
+
+	return @goes_as_is;
+}
 
 sub sql
 {

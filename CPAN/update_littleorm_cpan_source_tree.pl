@@ -24,7 +24,7 @@ sub main
 		'im in the wrong location?' );
 
 	my @files = &get_files_list( $dir );
-	push @files, '../ORM.pm';
+#	push @files, '../ORM.pm';
 
 	foreach my $file ( @files )
 	{
@@ -34,6 +34,7 @@ sub main
 		assert( -f $same_file_in_cpan_distro, 
 			"Missing in cpan: " . $same_file_in_cpan_distro );
 
+		printf( "%s\n", $file );
 		&patch_from_to( $file,
 				$same_file_in_cpan_distro );
 	}

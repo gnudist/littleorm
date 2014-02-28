@@ -1,3 +1,5 @@
+use strict;
+
 package LittleORM::Db::Field::XML;
 
 use Moose;

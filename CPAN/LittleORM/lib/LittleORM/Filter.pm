@@ -126,6 +126,7 @@ has 'joined_tables' => ( is => 'rw', isa => 'ArrayRef[HashRef]', default => sub 
 use Carp::Assert 'assert';
 use List::MoreUtils 'uniq';
 use LittleORM::Filter::Update ();
+use LittleORM::Clause ();
 
 {
 	my $counter = 0;

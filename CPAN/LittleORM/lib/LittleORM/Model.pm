@@ -1,3 +1,5 @@
+use strict;
+
 use LittleORM::Db ();
 use LittleORM::Db::Field ();
 use LittleORM::Meta::LittleORMHasDbh ();

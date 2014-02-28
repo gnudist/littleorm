@@ -1,3 +1,5 @@
+use strict;
+
 package LittleORM::Meta::Attribute;
 
 use Moose;
