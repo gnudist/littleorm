@@ -15,6 +15,7 @@ lib/LittleORM/Filter/Update.pm
 lib/LittleORM/Clause.pm
 lib/LittleORM/DataSet/Field.pm
 lib/LittleORM/Db.pm
+lib/LittleORM/Db/Connector.pm
 lib/LittleORM/Meta/LittleORMHasDbh.pm
 lib/LittleORM/Meta/Trait.pm
 lib/LittleORM/Meta/Attribute.pm
