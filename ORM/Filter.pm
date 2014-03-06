@@ -964,6 +964,14 @@ DQoYV7htzKfc5YJC:
 	{
 		if( my $fk = &ORM::Model::__descr_attr( $attr, 'foreign_key' ) )
 		{
+			if( $fk eq 'yes' )
+			{
+				assert( my $tc = $attr -> type_constraint(), 
+					sprintf( '%s attr type_constraint() is missing, did you specify "isa"?',
+						 $attr -> name() ) );
+				assert( $fk = $tc -> name() );
+			}
+
 			if( $model2 eq $fk )
 			{
 				$rv = $attr -> name();

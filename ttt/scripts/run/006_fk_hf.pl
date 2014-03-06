@@ -9,6 +9,9 @@ use Test::More;
 ORM::Db -> init( my $dbh = &TestDB::dbconnect() );
 
 use Models::BookHF ();
+use Models::AuthorHF ();
+
+use ORM::Filter ();
 
 my @books = Models::BookHF -> get_many();
 ok( scalar @books, "(hf) selected some books" );
@@ -41,6 +44,13 @@ foreach my $book ( @books )
 	}
 
 }
+
+{
+	my $f = Models::BookHF -> filter( Models::AuthorHF -> f() );
+	ok( 'didnt crash' );
+}
+
+
 
 $dbh -> disconnect();
 done_testing();
