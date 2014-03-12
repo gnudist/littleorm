@@ -448,20 +448,66 @@ sub __default_db_field_name_for_func
 	if( $func eq 'count' )
 	{
 		$rv = '*';
-		if( $args{ '_distinct' } )
+		if( my $d = $args{ '_distinct' } )
 		{
-			if( my @pk = $self -> __find_primary_keys() )
+			my @distinct_on = $self -> __get_distinct_on_attrs( $d );
+
+			if( @distinct_on )
 			{
-				assert( scalar @pk == 1, "count of distinct is not yet supported for multiple PK models" );
+				assert( scalar @distinct_on == 1, "count of distinct is not yet supported for multiple PK models" );
 				my @fields = map { sprintf( "%s.%s",
 							    ( $args{ '_table_alias' } or $self -> _db_table() ),
-							    &__get_db_field_name( $_ ) ) } @pk;
+							    &__get_db_field_name( $_ ) ) } @distinct_on;
 				$rv = 'DISTINCT ' . join( ", ", @fields );
+			} else
+			{
+				warn( sprintf( "Don't know on what to DISTINCT (no PK and fields not passed) for %s",
+					       ( ref( $self ) or $self ) ) );
 			}
 		}
 	}
 
 	return $rv;
+}
+
+sub __get_distinct_on_attrs
+{
+	my ( $self, $d ) = @_;
+
+	my @distinct_on = ();
+
+	if( my $what = ref( $d ) )
+	{
+		assert( $what eq 'ARRAY', 'on ref to array of fields on which to distinct can be passed' );
+		
+		foreach my $aname ( @{ $d } )
+		{
+			my $model_name = ( ref( $self ) or $self );
+			if( ORM::Model::Field -> this_is_field( $aname ) )
+			{
+				assert( $aname -> model() eq $model_name,
+					sprintf( "field %s from %s can not be used in model %s",
+						 $aname -> base_attr(),
+						 $aname -> model(),
+						 $model_name ) );
+				$aname = $aname -> base_attr();
+			}
+
+			assert( my $attr = $self -> meta() -> get_attribute( $aname ),
+				sprintf( 'invalid attr "%s" passed for model "%s"',
+					 $aname,
+					 $model_name ) );
+			push @distinct_on, $attr;
+		}
+		
+		
+	} else
+	{
+		@distinct_on = $self -> __find_primary_keys();
+	}
+	
+	return @distinct_on;
+	
 }
 
 sub __form_sql_func_sql
@@ -1479,17 +1525,23 @@ sub __form_get_sql
 
 	my $distinct_select = '';
 
-	if( $args{ '_distinct' } )
+	if( my $d = $args{ '_distinct' } )
 	{
 		$distinct_select = 'DISTINCT';
 
-		if( my @pk = $self -> __find_primary_keys() )
+		if( my @distinct_on = $self -> __get_distinct_on_attrs( $d ) )
 		{
 			my @fields = map { sprintf( "%s.%s",
 						    ( $args{ '_table_alias' } or $self -> _db_table() ),
-						    &__get_db_field_name( $_ ) ) } @pk;
+						    &__get_db_field_name( $_ ) ) } @distinct_on;
 
 			$distinct_select .= sprintf( " ON ( %s ) ", join( ',', @fields ) );
+		} else
+		{
+
+			warn( sprintf( "Don't know on what to DISTINCT (no PK and fields not passed) for %s",
+				       ( ref( $self ) or $self ) ) );
+
 		}
 	}
 

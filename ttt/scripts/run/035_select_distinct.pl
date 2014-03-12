@@ -27,12 +27,42 @@ ok( $a_cnt > 0, 'we have some authors indeed: ' . $a_cnt );
 my @distinct_books = Models::Book -> get_many( _distinct => 'yes' );
 is( scalar @distinct_books, $cnt, 'books count matches to distinct books number' );
 
-
-my @distinct_authors = Models::Book -> get_many( _distinct => 'yes',
+my @distinct_authors = Models::Book -> get_many( _distinct => [ 'author' ],
 						 _fieldset => [ 'author' ] );
 
 ok( scalar @distinct_authors <= $a_cnt, "maybe not all authors have books" );
 
+
+foreach my $ds ( @distinct_authors )
+{
+	isa_ok( $ds, 'ORM::DataSet', 'of course this is dataset' );
+
+	ok( my $author = $ds -> field_by_name( 'author' ) );
+	isa_ok( $author, 'Models::Author', 'of course this is author' );
+
+}
+
+
+{
+	my $afield = Models::Book -> borrow_field( 'author' );
+
+	my @distinct_authors = Models::Book -> get_many( _distinct => [ $afield ],
+							 _fieldset => [ $afield ] );
+
+	ok( scalar @distinct_authors <= $a_cnt, "maybe not all authors have books" );
+
+
+	foreach my $ds ( @distinct_authors )
+	{
+		isa_ok( $ds, 'ORM::DataSet', 'of course this is dataset' );
+		
+		ok( my $author = $ds -> field( $afield ) );
+		isa_ok( $author, 'Models::Author', 'of course this is author' );
+		
+	}
+	
+	
+}
 
 ok( 1, "didnt crash" );
 
