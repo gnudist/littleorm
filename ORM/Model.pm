@@ -476,10 +476,8 @@ sub __get_distinct_on_attrs
 
 	my @distinct_on = ();
 
-	if( my $what = ref( $d ) )
+	if( ref( $d ) eq 'ARRAY' )
 	{
-		assert( $what eq 'ARRAY', 'on ref to array of fields on which to distinct can be passed' );
-		
 		foreach my $aname ( @{ $d } )
 		{
 			my $model_name = ( ref( $self ) or $self );
