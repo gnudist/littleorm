@@ -1,1 +1,2 @@
-LittleORM is a flexible ORM written in Perl with Moose. Developed to work and tested with PostgreSQL.
+LittleORM is a flexible ORM written in Perl with Moose. Developed to
+work and tested with PostgreSQL 8.2+.

@@ -157,7 +157,18 @@ sub dbq
 		$dbh = &get_read_dbh();
 	}
 
-	return $dbh -> quote( $v );
+	my $rv = undef;
+
+	eval {
+		$rv = $dbh -> quote( $v );
+	};
+
+	if( my $err = $@ )
+	{
+		assert( 0, $err );
+	}
+
+	return $rv;
 }
 
 sub getrow

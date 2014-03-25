@@ -121,4 +121,6 @@ insert into publication (book,publisher) values (3,1);
 
 ALTER SEQUENCE publication_id_seq RESTART WITH 100;
 
+CREATE TABLE single_column_pk ( id serial PRIMARY KEY NOT NULL );
+
 COMMIT;

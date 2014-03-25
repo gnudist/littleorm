@@ -719,7 +719,7 @@ sub create_many
 		{
 			$fields = $f;
 		}
-		push @values_sets, join( ',', map { &ORM::Db::dbq( $_, $dbh ) } @{ $v } );
+		push @values_sets, join( ',', @{ $v } );
 	}
 
 	my $sql = sprintf( "INSERT INTO %s (%s) VALUES %s RETURNING *",
@@ -1199,11 +1199,6 @@ sub __load_module
 
 	Module::Load::load( $mn );
 
-	# $mn =~ s/::/\//g;
-	# $mn .= '.pm';
-
-	# require( $mn );
-
 }
 
 sub __correct_insert_args
@@ -1214,8 +1209,17 @@ sub __correct_insert_args
 	my $dbh = $self -> __get_dbh( %args,
 				      &__for_write() );
 
+wus2eQ_YY2I_r3rb:
 	foreach my $attr ( $self -> meta() -> get_all_attributes() )
 	{
+
+		if( &__descr_attr( $attr, 'ignore' ) 
+		    or 
+		    &__descr_attr( $attr, 'ignore_write' ) )
+		{
+			next wus2eQ_YY2I_r3rb;
+		}
+
 		my $aname = $attr -> name();
 		unless( $args{ $aname } )
 		{
@@ -1224,11 +1228,28 @@ sub __correct_insert_args
 				my $nv = &ORM::Db::nextval( $seqname, $dbh );
 
 				$args{ $aname } = $nv;
-			}
+			} else
+  			{
+  				$args{ $aname } = &__default_insert_field_cached();
+  			}
 		}
 	}
 
 	return %args;
+}
+
+{
+	my $rv = undef;
+
+	sub __default_insert_field_cached
+	{
+		unless( $rv )
+		{
+			$rv = ORM::Model::Field -> new( db_func => 'DEFAULT',
+							db_func_tpl => '%s' );
+		}
+		return $rv;
+	}
 }
 
 
@@ -1239,6 +1260,9 @@ sub __form_fields_and_values_for_insert_sql
 
 	my @fields = ();
 	my @values = ();
+
+	my $dbh = $self -> __get_dbh( %args,
+				      &__for_write() );
 
 XmXRGqnrCTqWH52Z:
 	while( my ( $arg, $val ) = each %args )
@@ -1258,15 +1282,23 @@ XmXRGqnrCTqWH52Z:
 			next XmXRGqnrCTqWH52Z;
 		}
 
+		( undef,
+		  $val,
+		  undef,
+		  undef,
+		  undef ) = $self -> determine_op_and_col_and_correct_val( $arg,
+									   $val,
+									   $self -> _db_table(),
+									   \%args,
+									   $dbh );
+
 		my $field_name = &__get_db_field_name( $attr );
-		$val = &__prep_value_for_db( $attr, $val );
 		
 		push @fields, $field_name;
 		push @values, $val;
 	}
 
 	return ( \@fields, \@values );
-
 }
 
 
@@ -1283,12 +1315,7 @@ sub __form_insert_sql
 	my $sql = sprintf( "INSERT INTO %s (%s) VALUES (%s) RETURNING *",
 			   $self -> _db_table(),
 			   join( ',', @{ $fields } ),
-			   join( ',', map { &ORM::Db::dbq( $_, $dbh ) } @{ $values } ) );
-
-	# if( my @pk = $self -> __find_primary_keys() )
-	# {
-	# 	$sql .= " RETURNING " . join( ',', map { &__get_db_field_name( $_ ) } @pk );
-	# }
+			   join( ',', @{ $values } ) );
 
 	return $sql;
 }
@@ -1811,8 +1838,6 @@ fhFwaEknUtY5xwNr:
 		if( $op )
 		{
 			my $f = $col;
-
-			my $include_table_alias_into_sql = 1;
 
 			unless( ( exists $args{ '_include_table_alias_into_sql' } )
 				and
