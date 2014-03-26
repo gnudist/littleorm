@@ -14,5 +14,40 @@ has_field 'id' => ( isa => 'Int',
 
 has_field 'arr_col' => ( isa => 'ArrayRef' );
 
+has_field 'hr_col' => ( isa => 'HashRef',
+			description => { coerce_from => \&_hr_col_cf,
+					 coerce_to => \&_hr_col_ct } );
+
+has_field 'not_null_no_default_col' => ( isa => 'Int' );
+
+use Carp::Assert 'assert';
+
+sub _hr_col_cf
+{
+	my $db_val = shift;
+
+	my %rv = ();
+	
+	if( $db_val )
+	{
+		%rv = split( /:/, $db_val );
+	}
+
+	return \%rv;
+}
+
+sub _hr_col_ct
+{
+	my $val = shift;
+
+	my $rv = undef;
+
+	if( $val )
+	{
+		$rv = join( ':', %{ $val } );
+	}
+
+	return $rv;
+}
 
 42;

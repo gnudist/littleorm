@@ -124,6 +124,8 @@ ALTER SEQUENCE publication_id_seq RESTART WITH 100;
 CREATE TABLE single_column_pk ( id serial PRIMARY KEY NOT NULL );
 
 CREATE TABLE table_with_array_column ( id serial PRIMARY KEY NOT NULL,
-       arr_col varchar[] );
+       arr_col varchar[],
+       not_null_no_default_col int not null,
+       hr_col varchar );
 
 COMMIT;
