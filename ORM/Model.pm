@@ -1073,12 +1073,12 @@ sub BUILD
 {
 	my $self = shift;
 
+	my $orm_initialized_attr_desc_option = 'orm_initialized_attr' . ref( $self );
+
 FXOINoqUOvIG1kAG:
 	foreach my $attr ( $self -> meta() -> get_all_attributes() )
 	{
 		my $aname = $attr -> name();
-
-		my $orm_initialized_attr_desc_option = 'orm_initialized_attr' . ref( $self );
 
 		if( $self -> __should_ignore( $attr ) or &__descr_attr( $attr, $orm_initialized_attr_desc_option ) )
 		{
