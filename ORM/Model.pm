@@ -1265,8 +1265,9 @@ sub __form_fields_and_values_for_insert_sql
 				      &__for_write() );
 
 XmXRGqnrCTqWH52Z:
-	while( my ( $arg, $val ) = each %args )
+	foreach my $arg ( keys %args )
 	{
+		my $val = $args{ $arg };
 		if( $arg =~ /^_/ )
 		{
 			next XmXRGqnrCTqWH52Z;
@@ -1289,7 +1290,8 @@ XmXRGqnrCTqWH52Z:
 		  undef ) = $self -> determine_op_and_col_and_correct_val( $arg,
 									   $val,
 									   $self -> _db_table(),
-									   \%args,
+									   { %args,
+									     __we_do_insert_now => 'yes' },
 									   $dbh );
 
 		my $field_name = &__get_db_field_name( $attr );
@@ -1935,17 +1937,28 @@ sub determine_op_and_col_and_correct_val
 			
 		} elsif( ref( $val ) eq 'ARRAY' )
 		{
-			
-			if( my @values = map { $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $_ ),
-										     $ta,
-										     $args, 
-										     $dbh ) } @{ $val } )
+			if( $args -> { '__we_do_insert_now' } )
 			{
-				$val = sprintf( "(%s)", join( ',', @values ) );
-				$op = 'IN';
+
+				my @values = map { $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $_ ),
+											 $ta,
+											 $args ) } @{ $val };
+				$val = &ORM::Db::dbq( \@values, $dbh );
+
 			} else
 			{
-				$val = "ANY('{}')";
+
+				if( my @values = map { $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $_ ),
+											     $ta,
+											     $args, 
+											     $dbh ) } @{ $val } )
+				{
+					$val = sprintf( "(%s)", join( ',', @values ) );
+					$op = 'IN';
+				} else
+				{
+					$val = "ANY('{}')";
+				}
 			}
 			
 		} elsif( ORM::Model::Field -> this_is_field( $val ) )
