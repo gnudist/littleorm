@@ -20,6 +20,8 @@ has_field 'hr_col' => ( isa => 'HashRef',
 
 has_field 'not_null_no_default_col' => ( isa => 'Int' );
 
+has_field 'created' => ( isa => 'Str' );
+
 use Carp::Assert 'assert';
 
 sub _hr_col_cf
