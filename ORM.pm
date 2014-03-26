@@ -103,6 +103,7 @@ sub __has_field_no_check
 
 			return $self -> __lazy_build_value( $attr );
 		};
+		$args{ 'description' } -> { 'orm_initialized_attr' . $meta -> name() } = 'yes';
 	}
 
 	$attr = $meta -> add_attribute( $name, %args );

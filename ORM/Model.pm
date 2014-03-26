@@ -1073,12 +1073,6 @@ sub BUILD
 {
 	my $self = shift;
 
-	if( $self -> meta() -> can( 'found_orm' ) and $self -> meta() -> found_orm() )
-	{
-		return;
-	}
-
-
 FXOINoqUOvIG1kAG:
 	foreach my $attr ( $self -> meta() -> get_all_attributes() )
 	{
