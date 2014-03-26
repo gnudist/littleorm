@@ -1221,7 +1221,7 @@ wus2eQ_YY2I_r3rb:
 		}
 
 		my $aname = $attr -> name();
-		unless( $args{ $aname } )
+		unless( exists $args{ $aname } )
 		{
 			if( my $seqname = &__descr_attr( $attr, 'sequence' ) )
 			{
@@ -1889,7 +1889,7 @@ sub determine_op_and_col_and_correct_val
 	unless( ORM::Model::Field -> this_is_field( $attr ) )
 	{
 		assert( $class_attr = $self -> meta() -> find_attribute_by_name( $attr ),
-			sprintf( 'invalid non-system attribute in where: %s', $attr ) );
+			sprintf( 'invalid attribute: "%s"', $attr ) );
 		
 		if( &__descr_attr( $class_attr, 'ignore' ) )
 		{
@@ -1915,31 +1915,39 @@ sub determine_op_and_col_and_correct_val
 
 		if( ref( $val ) eq 'HASH' )
 		{
-			my %t = %{ $val };
-			my $rval = undef;
-			( $op, $rval ) = each %t;
-				
-			if( ref( $rval ) eq 'ARRAY' )
+			if( $args -> { '__we_do_insert_now' } )
 			{
-				$val = sprintf( '(%s)', join( ',', map { $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $_ ),
-													       $ta,
-													       $args,
-													       $dbh ) } @{ $rval } ) );
-					
-			} else
-			{
-				$val = $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $rval ),
+				$val = $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $val ),
 									     $ta,
 									     $args,
 									     $dbh );
-
+			} else
+			{
+				my %t = %{ $val };
+				my $rval = undef;
+				( $op, $rval ) = each %t;
+				
+				if( ref( $rval ) eq 'ARRAY' )
+				{
+					$val = sprintf( '(%s)', join( ',', map { $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $_ ),
+														       $ta,
+														       $args,
+														       $dbh ) } @{ $rval } ) );
+					
+				} else
+				{
+					$val = $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $rval ),
+										     $ta,
+										     $args,
+										     $dbh );
+					
+				}
 			}
 			
 		} elsif( ref( $val ) eq 'ARRAY' )
 		{
 			if( $args -> { '__we_do_insert_now' } )
 			{
-
 				my @values = map { $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $_ ),
 											 $ta,
 											 $args ) } @{ $val };
