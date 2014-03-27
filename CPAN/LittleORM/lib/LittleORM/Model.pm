@@ -476,10 +476,8 @@ sub __get_distinct_on_attrs
 
 	my @distinct_on = ();
 
-	if( my $what = ref( $d ) )
+	if( ref( $d ) eq 'ARRAY' )
 	{
-		assert( $what eq 'ARRAY', 'on ref to array of fields on which to distinct can be passed' );
-		
 		foreach my $aname ( @{ $d } )
 		{
 			my $model_name = ( ref( $self ) or $self );
@@ -721,7 +719,7 @@ sub create_many
 		{
 			$fields = $f;
 		}
-		push @values_sets, join( ',', map { &LittleORM::Db::dbq( $_, $dbh ) } @{ $v } );
+		push @values_sets, join( ',', @{ $v } );
 	}
 
 	my $sql = sprintf( "INSERT INTO %s (%s) VALUES %s RETURNING *",
@@ -1075,10 +1073,8 @@ sub BUILD
 {
 	my $self = shift;
 
-	if( $self -> meta() -> can( 'found_orm' ) and $self -> meta() -> found_orm() )
-	{
-		return;
-	}
+	my $orm_initialized_attr_desc_option = '__orm_initialized_attr_' . ref( $self );
+	my $orm_initialized_attr_desc_option_hf = '__orm_initialized_attr_has_field_';
 
 
 FXOINoqUOvIG1kAG:
@@ -1086,9 +1082,11 @@ FXOINoqUOvIG1kAG:
 	{
 		my $aname = $attr -> name();
 
-		my $orm_initialized_attr_desc_option = 'orm_initialized_attr' . ref( $self );
-
-		if( $self -> __should_ignore( $attr ) or &__descr_attr( $attr, $orm_initialized_attr_desc_option ) )
+		if( $self -> __should_ignore( $attr ) 
+		    or
+		    &__descr_attr( $attr, $orm_initialized_attr_desc_option )
+		    or
+		    &__descr_attr( $attr, $orm_initialized_attr_desc_option_hf ) )
 		{
 			# internal attrs start with underscore, skip them
 			next FXOINoqUOvIG1kAG;
@@ -1201,11 +1199,6 @@ sub __load_module
 
 	Module::Load::load( $mn );
 
-	# $mn =~ s/::/\//g;
-	# $mn .= '.pm';
-
-	# require( $mn );
-
 }
 
 sub __correct_insert_args
@@ -1216,21 +1209,47 @@ sub __correct_insert_args
 	my $dbh = $self -> __get_dbh( %args,
 				      &__for_write() );
 
+wus2eQ_YY2I_r3rb:
 	foreach my $attr ( $self -> meta() -> get_all_attributes() )
 	{
+
+		if( &__descr_attr( $attr, 'ignore' ) 
+		    or 
+		    &__descr_attr( $attr, 'ignore_write' ) )
+		{
+			next wus2eQ_YY2I_r3rb;
+		}
+
 		my $aname = $attr -> name();
-		unless( $args{ $aname } )
+		unless( exists $args{ $aname } )
 		{
 			if( my $seqname = &__descr_attr( $attr, 'sequence' ) )
 			{
 				my $nv = &LittleORM::Db::nextval( $seqname, $dbh );
 
 				$args{ $aname } = $nv;
-			}
+			} else
+  			{
+  				$args{ $aname } = &__default_insert_field_cached();
+  			}
 		}
 	}
 
 	return %args;
+}
+
+{
+	my $rv = undef;
+
+	sub __default_insert_field_cached
+	{
+		unless( $rv )
+		{
+			$rv = LittleORM::Model::Field -> new( db_func => 'DEFAULT',
+							db_func_tpl => '%s' );
+		}
+		return $rv;
+	}
 }
 
 
@@ -1242,9 +1261,13 @@ sub __form_fields_and_values_for_insert_sql
 	my @fields = ();
 	my @values = ();
 
+	my $dbh = $self -> __get_dbh( %args,
+				      &__for_write() );
+
 XmXRGqnrCTqWH52Z:
-	while( my ( $arg, $val ) = each %args )
+	foreach my $arg ( keys %args )
 	{
+		my $val = $args{ $arg };
 		if( $arg =~ /^_/ )
 		{
 			next XmXRGqnrCTqWH52Z;
@@ -1260,15 +1283,24 @@ XmXRGqnrCTqWH52Z:
 			next XmXRGqnrCTqWH52Z;
 		}
 
+		( undef,
+		  $val,
+		  undef,
+		  undef,
+		  undef ) = $self -> determine_op_and_col_and_correct_val( $arg,
+									   $val,
+									   $self -> _db_table(),
+									   { %args,
+									     __we_do_insert_now => 'yes' },
+									   $dbh );
+
 		my $field_name = &__get_db_field_name( $attr );
-		$val = &__prep_value_for_db( $attr, $val );
 		
 		push @fields, $field_name;
 		push @values, $val;
 	}
 
 	return ( \@fields, \@values );
-
 }
 
 
@@ -1285,12 +1317,7 @@ sub __form_insert_sql
 	my $sql = sprintf( "INSERT INTO %s (%s) VALUES (%s) RETURNING *",
 			   $self -> _db_table(),
 			   join( ',', @{ $fields } ),
-			   join( ',', map { &LittleORM::Db::dbq( $_, $dbh ) } @{ $values } ) );
-
-	# if( my @pk = $self -> __find_primary_keys() )
-	# {
-	# 	$sql .= " RETURNING " . join( ',', map { &__get_db_field_name( $_ ) } @pk );
-	# }
+			   join( ',', @{ $values } ) );
 
 	return $sql;
 }
@@ -1814,8 +1841,6 @@ fhFwaEknUtY5xwNr:
 		{
 			my $f = $col;
 
-			my $include_table_alias_into_sql = 1;
-
 			unless( ( exists $args{ '_include_table_alias_into_sql' } )
 				and
 				( $args{ '_include_table_alias_into_sql' } == 0 ) )
@@ -1864,7 +1889,7 @@ sub determine_op_and_col_and_correct_val
 	unless( LittleORM::Model::Field -> this_is_field( $attr ) )
 	{
 		assert( $class_attr = $self -> meta() -> find_attribute_by_name( $attr ),
-			sprintf( 'invalid non-system attribute in where: %s', $attr ) );
+			sprintf( 'invalid attribute: "%s"', $attr ) );
 		
 		if( &__descr_attr( $class_attr, 'ignore' ) )
 		{
@@ -1890,39 +1915,58 @@ sub determine_op_and_col_and_correct_val
 
 		if( ref( $val ) eq 'HASH' )
 		{
-			my %t = %{ $val };
-			my $rval = undef;
-			( $op, $rval ) = each %t;
-				
-			if( ref( $rval ) eq 'ARRAY' )
+			if( $args -> { '__we_do_insert_now' } )
 			{
-				$val = sprintf( '(%s)', join( ',', map { $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $_ ),
-													       $ta,
-													       $args,
-													       $dbh ) } @{ $rval } ) );
-					
-			} else
-			{
-				$val = $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $rval ),
+				$val = $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $val ),
 									     $ta,
 									     $args,
 									     $dbh );
-
+			} else
+			{
+				my %t = %{ $val };
+				my $rval = undef;
+				( $op, $rval ) = each %t;
+				
+				if( ref( $rval ) eq 'ARRAY' )
+				{
+					$val = sprintf( '(%s)', join( ',', map { $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $_ ),
+														       $ta,
+														       $args,
+														       $dbh ) } @{ $rval } ) );
+					
+				} else
+				{
+					$val = $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $rval ),
+										     $ta,
+										     $args,
+										     $dbh );
+					
+				}
 			}
 			
 		} elsif( ref( $val ) eq 'ARRAY' )
 		{
-			
-			if( my @values = map { $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $_ ),
-										     $ta,
-										     $args, 
-										     $dbh ) } @{ $val } )
+			if( $args -> { '__we_do_insert_now' } )
 			{
-				$val = sprintf( "(%s)", join( ',', @values ) );
-				$op = 'IN';
+				my @values = map { $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $_ ),
+											 $ta,
+											 $args ) } @{ $val };
+				$val = &LittleORM::Db::dbq( \@values, $dbh );
+
 			} else
 			{
-				$val = "ANY('{}')";
+
+				if( my @values = map { $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $_ ),
+											     $ta,
+											     $args, 
+											     $dbh ) } @{ $val } )
+				{
+					$val = sprintf( "(%s)", join( ',', @values ) );
+					$op = 'IN';
+				} else
+				{
+					$val = "ANY('{}')";
+				}
 			}
 			
 		} elsif( LittleORM::Model::Field -> this_is_field( $val ) )
@@ -2002,7 +2046,6 @@ sub __find_primary_keys
 
 	foreach my $attr ( $self -> meta() -> get_all_attributes() )
 	{
-
 		if( my $pk = &__descr_attr( $attr, 'primary_key' ) )
 		{
 			push @rv, $attr;

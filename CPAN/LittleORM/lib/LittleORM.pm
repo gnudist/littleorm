@@ -11,11 +11,9 @@ has 'found_orm'	=> ( is => 'rw', isa => 'Bool', default => 0 );
 
 no Moose::Role;
 
-
-
 package LittleORM;
 
-our $VERSION = '0.18';
+our $VERSION = '0.19';
 
 =head1 NAME
 
@@ -23,7 +21,7 @@ LittleORM - ORM for Perl with Moose.
 
 =head1 VERSION
 
-Version 0.18
+Version 0.19
 
 =cut
 
@@ -129,10 +127,6 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 =cut
 
 
-
-
-
-
 use Moose;
 use Moose::Exporter;
 use Moose::Util::MetaRole;
@@ -221,6 +215,7 @@ sub __has_field_no_check
 
 			return $self -> __lazy_build_value( $attr );
 		};
+		$args{ 'description' } -> { '__orm_initialized_attr_has_field_' } = 'yes';
 	}
 
 	$attr = $meta -> add_attribute( $name, %args );
@@ -235,4 +230,3 @@ no Moose::Exporter;
 no Moose;
 
 -1;
-
