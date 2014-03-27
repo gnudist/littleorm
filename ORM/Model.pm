@@ -1073,14 +1073,20 @@ sub BUILD
 {
 	my $self = shift;
 
-	my $orm_initialized_attr_desc_option = 'orm_initialized_attr' . ref( $self );
+	my $orm_initialized_attr_desc_option = '__orm_initialized_attr_' . ref( $self );
+	my $orm_initialized_attr_desc_option_hf = '__orm_initialized_attr_has_field_';
+
 
 FXOINoqUOvIG1kAG:
 	foreach my $attr ( $self -> meta() -> get_all_attributes() )
 	{
 		my $aname = $attr -> name();
 
-		if( $self -> __should_ignore( $attr ) or &__descr_attr( $attr, $orm_initialized_attr_desc_option ) )
+		if( $self -> __should_ignore( $attr ) 
+		    or
+		    &__descr_attr( $attr, $orm_initialized_attr_desc_option )
+		    or
+		    &__descr_attr( $attr, $orm_initialized_attr_desc_option_hf ) )
 		{
 			# internal attrs start with underscore, skip them
 			next FXOINoqUOvIG1kAG;
@@ -2040,7 +2046,6 @@ sub __find_primary_keys
 
 	foreach my $attr ( $self -> meta() -> get_all_attributes() )
 	{
-
 		if( my $pk = &__descr_attr( $attr, 'primary_key' ) )
 		{
 			push @rv, $attr;
