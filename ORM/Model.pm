@@ -1948,10 +1948,17 @@ sub determine_op_and_col_and_correct_val
 		{
 			if( $args -> { '__we_do_insert_now' } )
 			{
-				my @values = map { $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $_ ),
-											 $ta,
-											 $args ) } @{ $val };
-				$val = &ORM::Db::dbq( \@values, $dbh );
+
+				$val = &ORM::Db::dbq( $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $val ),
+											    $ta,
+											    $args ),
+						      $dbh );
+
+
+				# my @values = map { $self -> __prep_value_for_db_w_field( &__prep_value_for_db( $class_attr, $_ ),
+				# 							 $ta,
+				# 							 $args ) } @{ $val };
+				# $val = &ORM::Db::dbq( \@values, $dbh );
 
 			} else
 			{
