@@ -1265,7 +1265,7 @@ sub __form_fields_and_values_for_insert_sql
 				      &__for_write() );
 
 XmXRGqnrCTqWH52Z:
-	foreach my $arg ( keys %args )
+	foreach my $arg ( sort keys %args ) # sort here is crucial for create_many() , see test 040
 	{
 		my $val = $args{ $arg };
 		if( $arg =~ /^_/ )

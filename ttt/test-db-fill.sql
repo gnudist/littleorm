@@ -1,5 +1,24 @@
 BEGIN;
 
+CREATE TABLE metatable 
+(
+	id serial NOT NULL PRIMARY KEY,
+	rgroup int not null,
+	f01 varchar,
+	f02 varchar,
+	f03 varchar,
+	f04 varchar,
+	f05 varchar,
+	f06 varchar,
+	f07 varchar,
+	f08 varchar,
+	f09 varchar,
+	f10 varchar,
+	f11 varchar,
+	f12 varchar,
+	f13 varchar
+);
+
 CREATE TABLE author
 (
 	id serial NOT NULL PRIMARY KEY,
