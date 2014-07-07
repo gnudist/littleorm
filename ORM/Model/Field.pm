@@ -12,6 +12,9 @@ has 'base_attr' => ( is => 'rw',
 		     isa => 'Str',
 		     default => '' );
 
+has 'base_field' => ( is => 'rw',
+		      isa => 'ORM::Model::Field' );
+
 has 'db_func' => ( is => 'rw',
 		   isa => 'Str' );
 
@@ -126,6 +129,10 @@ sub form_field_name_for_db_select
 		assert( $self -> model() );
 		$rv = ( $table ? $table . '.' : '' ) .
 		      &ORM::Model::__get_db_field_name( $self -> model() -> meta() -> find_attribute_by_name( $rv ) );
+
+	} elsif( my $f = $self -> base_field() )
+	{
+		$rv = $f -> form_field_name_for_db_select();
 	}
 
 	if( my $f = $self -> db_func() )
