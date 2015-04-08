@@ -13,7 +13,7 @@ no Moose::Role;
 
 package LittleORM;
 
-our $VERSION = '0.21';
+our $VERSION = '0.22';
 
 =head1 NAME
 
@@ -21,7 +21,7 @@ LittleORM - ORM for Perl with Moose.
 
 =head1 VERSION
 
-Version 0.21
+Version 0.22
 
 =cut
 
@@ -145,7 +145,7 @@ sub init_meta
 	return &Moose::Util::MetaRole::apply_metaroles(
 		for             => $args{ 'for_class' },
 		class_metaroles => {
-			class => [ 'LittleORM::Meta::Role' ]
+			class => [ 'ORM::Meta::Role' ]
 		}
 	    );
 }
@@ -161,7 +161,7 @@ sub has_field
 		
 		foreach my $class ( @isa )
 		{
-			if( $class -> isa( 'LittleORM::Model' ) )
+			if( $class -> isa( 'ORM::Model' ) )
 			{
 				$meta -> found_orm( $ok = 1 );
 				
@@ -169,7 +169,7 @@ sub has_field
 			}
 		}
 		
-		assert( $ok, sprintf( 'Class "%s" must extend LittleORM::Model', $isa[ 0 ] ) );
+		assert( $ok, sprintf( 'Class "%s" must extend ORM::Model', $isa[ 0 ] ) );
 	}
 
 	return &__has_field_no_check( $meta, $name, %args );
@@ -181,10 +181,10 @@ sub __has_field_no_check
 
 	if( ref( $args{ 'traits' } ) eq 'ARRAY' )
 	{
-		push @{ $args{ 'traits' } }, 'LittleORM::Meta::Trait';
+		push @{ $args{ 'traits' } }, 'ORM::Meta::Trait';
 	} else
 	{
-		$args{ 'traits' } = [ 'LittleORM::Meta::Trait' ];
+		$args{ 'traits' } = [ 'ORM::Meta::Trait' ];
 	}
 	
 	unless( ref( $args{ 'description' } ) eq 'HASH' )
@@ -230,3 +230,4 @@ no Moose::Exporter;
 no Moose;
 
 -1;
+
