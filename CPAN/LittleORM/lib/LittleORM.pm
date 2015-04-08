@@ -13,7 +13,7 @@ no Moose::Role;
 
 package LittleORM;
 
-our $VERSION = '0.20';
+our $VERSION = '0.21';
 
 =head1 NAME
 
@@ -21,7 +21,7 @@ LittleORM - ORM for Perl with Moose.
 
 =head1 VERSION
 
-Version 0.20
+Version 0.21
 
 =cut
 
