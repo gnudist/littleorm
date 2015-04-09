@@ -13,7 +13,7 @@ no Moose::Role;
 
 package LittleORM;
 
-our $VERSION = '0.22';
+our $VERSION = '0.23';
 
 =head1 NAME
 
@@ -21,7 +21,7 @@ LittleORM - ORM for Perl with Moose.
 
 =head1 VERSION
 
-Version 0.22
+Version 0.23
 
 =cut
 
@@ -145,7 +145,7 @@ sub init_meta
 	return &Moose::Util::MetaRole::apply_metaroles(
 		for             => $args{ 'for_class' },
 		class_metaroles => {
-			class => [ 'ORM::Meta::Role' ]
+			class => [ 'LittleORM::Meta::Role' ]
 		}
 	    );
 }
