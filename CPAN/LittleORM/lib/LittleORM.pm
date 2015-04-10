@@ -13,7 +13,7 @@ no Moose::Role;
 
 package LittleORM;
 
-our $VERSION = '0.23';
+our $VERSION = '0.24';
 
 =head1 NAME
 
@@ -21,7 +21,7 @@ LittleORM - ORM for Perl with Moose.
 
 =head1 VERSION
 
-Version 0.23
+Version 0.24
 
 =cut
 
@@ -161,7 +161,7 @@ sub has_field
 		
 		foreach my $class ( @isa )
 		{
-			if( $class -> isa( 'ORM::Model' ) )
+			if( $class -> isa( 'LittleORM::Model' ) )
 			{
 				$meta -> found_orm( $ok = 1 );
 				
@@ -169,7 +169,7 @@ sub has_field
 			}
 		}
 		
-		assert( $ok, sprintf( 'Class "%s" must extend ORM::Model', $isa[ 0 ] ) );
+		assert( $ok, sprintf( 'Class "%s" must extend LittleORM::Model', $isa[ 0 ] ) );
 	}
 
 	return &__has_field_no_check( $meta, $name, %args );
@@ -181,10 +181,10 @@ sub __has_field_no_check
 
 	if( ref( $args{ 'traits' } ) eq 'ARRAY' )
 	{
-		push @{ $args{ 'traits' } }, 'ORM::Meta::Trait';
+		push @{ $args{ 'traits' } }, 'LittleORM::Meta::Trait';
 	} else
 	{
-		$args{ 'traits' } = [ 'ORM::Meta::Trait' ];
+		$args{ 'traits' } = [ 'LittleORM::Meta::Trait' ];
 	}
 	
 	unless( ref( $args{ 'description' } ) eq 'HASH' )
