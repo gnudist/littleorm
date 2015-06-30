@@ -21,9 +21,9 @@ ORM::Db -> init( my $dbh = &TestDB::dbconnect() );
 	ok( my $a1 = Models::Author -> get(), 'any record will do' );
 	ok( my $a2 = Models::Author -> get( id => $a1 -> id() ), 'new object same record' );
 
+	ok( $a1 -> equals( $a1 ), 'equals() 0' );
 	ok( $a1 -> equals( $a2 ), 'equals() 1' );
 	ok( $a2 -> equals( $a1 ), 'equals() 2' );
-
 
 	ok( $a1 -> equals( $a2 -> id() ), 'equals() 3' );
 	ok( $a2 -> equals( $a1 -> id() ), 'equals() 4' );
