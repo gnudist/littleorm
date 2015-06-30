@@ -73,6 +73,41 @@ sub __for_write
 	return ( _for_what => 'write' );
 }
 
+sub equals
+{
+        my ( $self, $other ) = @_;
+
+	my $rv = 0;
+	my @pks = $self -> __find_primary_keys();
+	
+        if( $other and blessed( $other ) and $other -> isa( ref( $self ) ) and @pks )
+        {
+
+		$rv = 1;
+			
+TPfHSgZ9BCDTx58w:
+		foreach my $key ( @pks )
+		{
+			assert( my $method_name = $key -> name() );
+			unless( $self -> $method_name() eq $other -> $method_name() ) # no check if $other actually can do $key()
+			{
+				$rv = 0;
+			}
+		}
+		
+        } elsif( $other and ( not ref( $other ) ) and ( scalar @pks == 1 ) )
+	{
+		my $method_name = $pks[ 0 ] -> name();
+
+		if( $self -> $method_name() eq $other )
+		{
+			$rv = 1;
+		}
+	}
+
+        return $rv;
+}
+
 sub reload
 {
 	my $self = shift;
