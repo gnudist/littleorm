@@ -38,7 +38,7 @@ ORM::Db -> init( my $dbh = &TestDB::dbconnect() );
 						    db_func => 'date' );
 	
 	my $f1 = ORM::Model::Field -> new( db_func => 'now' );
-	my $f3 = $f1 -> wrap_field( db_func => 'date' );
+	my $f3 = $f1 -> wrap_field( db_func => 'date' ); # the only change compared to prev. block
 	
 	my $sql = Models::Metatable -> get( $f2 => $f3,
 					    _fieldset => [ 'id' ],
