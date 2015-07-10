@@ -1681,6 +1681,8 @@ sub __form_additional_sql
 				{
 					$dbf = $k -> form_field_name_for_db_select( $k -> table_alias()
 										    or
+										    $k -> determine_ta_for_field_from_another_model( $args{ '_tables_to_select_from' } ),
+										    or
 										    $args{ '_table_alias' }
 										    or
 										    $self -> _db_table() );
