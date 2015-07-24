@@ -478,11 +478,22 @@ They (Clause objects) can also be combined flexibly.
                                                   # to get() funcs
                                                   # see "MORE ON SELECTION CLAUSES"
                                                   id => { '<', 100 } ] );
-    
+
+
+
     my $c2 = MyModel::Author -> clause( cond => [ id => { '>', 100 },
                                                   id => { '<', 110 } ] );
-    
-    
+
+
+Or simpler:
+
+
+    my $c1 = MyModel::Author -> clause( id => { '>', 91 },
+                                        id => { '<', 100 } );
+
+    my $c2 = MyModel::Author -> clause( id => { '>', 100 },
+                                        id => { '<', 110 } );
+
     my $c3 = MyModel::Author -> clause( cond => [ $c1, $c2 ],
                                         logic => 'OR' );
     
@@ -498,6 +509,18 @@ They (Clause objects) can also be combined flexibly.
     
     # produces: 
     # ... WHERE  (  ( id > '91' AND id < '100' )  OR  ( id > '100' AND id < '110' )  )
+
+
+Can use clause inside clause:
+
+    my $c1 = MyModel::Author -> clause( id => { '>', 91 },
+                                        id => { '<', 100 } );
+
+    my $c2 = MyModel::Author -> clause( id => { '>', 100 },
+                                        id => { '<', 110 },
+                                        _clause => $c1 );
+
+
 
 
 

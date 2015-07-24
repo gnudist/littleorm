@@ -60,6 +60,16 @@ use Scalar::Util 'blessed';
 	}
 }
 
+sub wrap_field
+{
+	my $self = shift;
+
+	my $rv = LittleORM::Model::Field -> new( base_field => $self,
+					   @_ );
+
+	return $rv;
+}
+
 sub determine_ta_for_field_from_another_model
 {
 	my ( $self, $tables ) = @_;

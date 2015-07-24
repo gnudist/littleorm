@@ -673,14 +673,14 @@ sub translate_into_sql_clauses
 	for( my $i = 0; $i < $clauses_number; $i ++ )
 	{
 		my $clause = $self -> clauses() -> [ $i ];
-		my $sql = $clause -> sql( $self -> _grep_out_non_system( @args ) );
+		my $sql = $clause -> sql( $self -> _grep_out_non_system_and_clauses( @args ) );
 		push @all_clauses_together, $sql;
 	}
 
 	return @all_clauses_together;
 }
 
-sub _grep_out_non_system
+sub _grep_out_non_system_and_clauses
 {
 	my $self = shift;
 
@@ -690,7 +690,7 @@ sub _grep_out_non_system
 	while( my $arg = shift @args )
 	{
 		my $val = shift @args;
-		if( $arg =~ /^_/ )
+		if( ( $arg =~ /^_/ ) and ( $arg ne '_clause' ) ) # looks crutchy
 		{
 			push @rv, ( $arg, $val );
 		}

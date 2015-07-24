@@ -73,6 +73,41 @@ sub __for_write
 	return ( _for_what => 'write' );
 }
 
+sub equals
+{
+        my ( $self, $other ) = @_;
+
+	my $rv = 0;
+	my @pks = $self -> __find_primary_keys();
+	
+        if( $other and blessed( $other ) and $other -> isa( ref( $self ) ) and @pks )
+        {
+
+		$rv = 1;
+			
+TPfHSgZ9BCDTx58w:
+		foreach my $key ( @pks )
+		{
+			assert( my $method_name = $key -> name() );
+			unless( $self -> $method_name() eq $other -> $method_name() ) # no check if $other actually can do $key()
+			{
+				$rv = 0;
+			}
+		}
+		
+        } elsif( $other and ( not ref( $other ) ) and ( scalar @pks == 1 ) )
+	{
+		my $method_name = $pks[ 0 ] -> name();
+
+		if( $self -> $method_name() eq $other )
+		{
+			$rv = 1;
+		}
+	}
+
+        return $rv;
+}
+
 sub reload
 {
 	my $self = shift;
@@ -1646,6 +1681,8 @@ sub __form_additional_sql
 				{
 					$dbf = $k -> form_field_name_for_db_select( $k -> table_alias()
 										    or
+										    $k -> determine_ta_for_field_from_another_model( $args{ '_tables_to_select_from' } ),
+										    or
 										    $args{ '_table_alias' }
 										    or
 										    $self -> _db_table() );
@@ -1765,9 +1802,15 @@ sub __process_clause_sys_arg_in_form_where
 		{
 			unless( $val -> table_alias() )
 			{
-				my $copy = bless( { %{ $val } }, ref $val );
-				$val = $copy;
-				$val -> table_alias( $ta );
+				if( ( ref( $self ) or $self ) eq $val -> model() )
+				{
+					my $copy = bless( { %{ $val } }, ref $val );
+					$val = $copy;
+					$val -> table_alias( $ta );
+				}
+				# my $copy = bless( { %{ $val } }, ref $val );
+				# $val = $copy;
+				# $val -> table_alias( $ta );
 			}
 		}
 	}
