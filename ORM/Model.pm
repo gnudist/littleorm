@@ -1802,9 +1802,15 @@ sub __process_clause_sys_arg_in_form_where
 		{
 			unless( $val -> table_alias() )
 			{
-				my $copy = bless( { %{ $val } }, ref $val );
-				$val = $copy;
-				$val -> table_alias( $ta );
+				if( ( ref( $self ) or $self ) eq $val -> model() )
+				{
+					my $copy = bless( { %{ $val } }, ref $val );
+					$val = $copy;
+					$val -> table_alias( $ta );
+				}
+				# my $copy = bless( { %{ $val } }, ref $val );
+				# $val = $copy;
+				# $val -> table_alias( $ta );
 			}
 		}
 	}

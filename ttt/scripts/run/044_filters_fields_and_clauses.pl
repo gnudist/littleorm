@@ -42,22 +42,22 @@ ORM::Db -> init( my $dbh = &TestDB::dbconnect() );
 }
 
 
-# {
-# 	my $c1 = Models::Author -> clause( id => 123 );
-# 	my $c4 = Models::Book -> clause( id => 111 );
+{
+	my $c1 = Models::Author -> clause( id => 123 );
+	my $c4 = Models::Book -> clause( id => 111 );
 	
-# 	my $c2 = Models::Book -> clause( id => 456 );
-# 	my $c3 = Models::Publications -> clause( id => 789 );
+	my $c2 = Models::Book -> clause( id => 456 );
+	my $c3 = Models::Publications -> clause( id => 789 );
 	
-# 	my $sql = Models::Author -> f( Models::Book -> f( Models::Publications -> f( $c3 ),
-# 							  $c2 ),
-# 				       $c1 ) -> get_many( _debug => 1,
-# 							  _clause => $c4 );
+	my $sql = Models::Author -> f( Models::Book -> f( Models::Publications -> f( $c3 ),
+							  $c2 ),
+				       $c1 ) -> get_many( _debug => 1,
+							  _clause => $c4 );
 
-	
-# 	print "'", $sql, "'\n";
+	is( $sql, "SELECT  T9.id,T9.aname FROM publication T7,book T8,author T9 WHERE  ( book.id = '111' )  AND  ( T7.id = '789' )  AND  ( 1=1 )  AND  ( T8.id=T7.book )  AND  ( T8.id = '456' )  AND  ( 1=1 )  AND  ( T9.id=T8.author )  AND  ( T9.id = '123' )  AND  ( 1=1 ) ", 'correct incorrect sql' );
 
-# }
+
+}
 
 
 ok( 1, "didnt crash" );
