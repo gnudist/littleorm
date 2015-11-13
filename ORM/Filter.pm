@@ -42,9 +42,6 @@ sub _disambiguate_filter_args
 					} elsif( my $rev_connect = &ORM::Filter::find_corresponding_fk_attr_between_models( $arg -> model(),
 															    $class ) )
 					{
-						# print $class, "\n";
-						# print $arg -> model(), "\n";
-						# print $rev_connect, "\n";
 
 						my $to_connect_with = 0;
 
@@ -644,7 +641,9 @@ sub get_returning
 	
 	if( $rv )
 	{
+
 		1;
+		
 	} elsif( my $rv_f = $self -> returning_field() )
 	{
 		$rv = $rv_f;

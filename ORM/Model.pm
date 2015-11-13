@@ -1706,7 +1706,11 @@ sub __form_additional_sql
 					 $self -> _db_table() ) . '.' . &__get_db_field_name( $t1 );
 			} elsif( ORM::Model::Field -> this_is_field( $t ) )
 			{
-				$dbf = $t -> form_field_name_for_db_select( $t -> table_alias()
+				my $k = $t;
+				
+				$dbf = $k -> form_field_name_for_db_select( $k -> table_alias()
+									    or
+									    $k -> determine_ta_for_field_from_another_model( $args{ '_tables_to_select_from' } ),
 									    or
 									    $args{ '_table_alias' }
 									    or
